@@ -23,6 +23,7 @@ from gst_source import generate_gst
 from bank_upi_source import generate_bank_upi
 from epfo_source import generate_epfo
 from ingest import run_ingestion
+from truncate_history import truncate_gst, truncate_epfo, truncate_bank
 
 
 def main():
@@ -43,6 +44,13 @@ def main():
     print("Generating EPFO contributions (Tier C only)...")
     epfo_df = generate_epfo(internal)
     print(f"  {len(epfo_df)} rows")
+
+    n_short = int(internal["history_available_frac"].lt(1.0).sum())
+    print(f"Truncating history for {n_short} borrowers with genuinely short track records...")
+    gst_df = truncate_gst(gst_df, internal)
+    bank_df = truncate_bank(bank_df, internal)
+    epfo_df = truncate_epfo(epfo_df, internal)
+    print(f"  post-truncation: {len(gst_df)} GST rows, {len(bank_df)} bank rows, {len(epfo_df)} EPFO rows")
 
     print("Running ingestion (tagging, consent audit log, writing data lake)...")
     paths = run_ingestion(OUTPUT_DIR, master, gst_df, bank_df, epfo_df)

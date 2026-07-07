@@ -46,7 +46,12 @@ def generate_bank_upi(internal_borrowers):
 
     for _, b in internal_borrowers.iterrows():
         params = ARCHETYPE_PARAMS[b["true_archetype"]]
-        scale = rng.uniform(0.8, 1.0) * (1 + min(b["business_age_years"], 15) / 20)
+        # Scale is anchored to the SAME true_monthly_turnover_base_inr used
+        # by the GST generator (not an independent draw) - this is what
+        # makes bank inflow and declared GST turnover correlate for honest
+        # reporters, and diverge specifically for under-reporters. Clipped
+        # so the biggest borrowers don't blow up transaction volume/file size.
+        scale = np.clip(b["true_monthly_turnover_base_inr"] / 1_000_000, 0.3, 3.0)
         balance = rng.uniform(50_000, 300_000) * scale
 
         # salary run day-of-month (regular businesses pay salary on ~same day)

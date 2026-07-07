@@ -1,5 +1,33 @@
 # Module 1 — Data Ingestion Layer (Synthetic)
 
+## v2 update (built while adding Module 2)
+
+Building the Module 2 data-quality checks exposed two real gaps in v1 of
+this generator, fixed here:
+
+1. **GST turnover and bank inflow were drawn independently per borrower.**
+   That made a GST-vs-bank cross-source consistency check meaningless -
+   every borrower would look "inconsistent" for no real reason, since the
+   two numbers never had a relationship to begin with. Fixed: both now
+   derive from a shared `true_monthly_turnover_base_inr` (see
+   `borrowers.py`), and a minority of borrowers (~14%, skewed toward the
+   distressed archetype) are generated as GST "under-reporters" - a
+   deliberate, disclosed fraud-like signal for Module 2 to try to catch.
+   It catches it with precision ~0.40 / recall ~0.29 on a single-year
+   ratio check alone - reported honestly in Module 2's README, not
+   oversold.
+2. **Every borrower had suspiciously complete history** (full 24
+   GST/EPFO months, full 365 bank days, no gaps). That meant Module 2's
+   "insufficient_data" completeness path could never actually fire on
+   real data - only on hand-injected test defects. Fixed: ~15% of Tier A
+   (thin-file) borrowers now get genuinely short history (3.5-11 months
+   instead of 24), via `truncate_history.py`, applied after generation.
+
+Also fixed in v1→v2: bank balances were briefly compounding
+multiplicatively per transaction (crore-scale artifacts) - already
+corrected before the first push; see the "known limitations" section
+below, which still applies.
+
 MSME Financial Health Score (Track 3). This is a **synthetic stand-in** for
 the real ingestion connectors described in the architecture (AA, GSTN,
 EPFO). No live API, consent flow, or bureau pull happens here — this
@@ -24,11 +52,11 @@ Produces `data_lake/`:
 | File | Rows (this run) | Description |
 |---|---|---|
 | `borrower_master.csv` | 400 | One row per borrower: tier, sector, business age, has_epfo, consent_id |
-| `gst_returns/gst_returns.csv` | ~9,600 | 24 months of GSTR-3B-style returns per borrower |
-| `bank_upi_transactions/bank_upi_transactions.csv` | ~810,000 | 365 days of transaction-level bank/UPI activity |
+| `gst_returns/gst_returns.csv` | ~8,900 | 24 months of GSTR-3B-style returns per borrower (fewer for the ~15% of Tier A borrowers with genuinely short history) |
+| `bank_upi_transactions/bank_upi_transactions.csv.gz` | ~1.5M | 365 days of transaction-level bank/UPI activity, gzip-compressed |
 | `epfo_contributions/epfo_contributions.csv` | ~3,700 | 24 months of EPFO contributions, Tier C only |
 | `consent_audit_log.csv` | 1,200 | One row per (borrower, source) pull attempt, incl. not-applicable sources |
-| `ground_truth/ground_truth_labels.csv` | 400 | **Hidden** archetype label — see warning below |
+| `ground_truth/ground_truth_labels.csv` | 400 | **Hidden** fields — see warning below |
 
 ## Schema
 
@@ -55,21 +83,23 @@ Categories: `sales_inflow, upi_transfer_in` (credit) / `vendor_payment, salary_p
 
 A Tier A borrower's missing EPFO record shows up here as `not_applicable`, not silence. This matters for Module 2: **missing data must be flagged, never silently treated as bad data** — otherwise thin-file/NTC borrowers get penalized for being thin-file, which defeats the "expand access to credit-invisible MSMEs" goal in the brief and is a defensible fairness problem if a judge asks.
 
-## The hidden ground-truth label — read this before Module 2/3
+## The hidden ground-truth fields — read this before Module 2/3
 
-`ground_truth/ground_truth_labels.csv` assigns each borrower a `true_archetype`
-(`healthy` / `stagnant` / `distressed`) that was used to *drive* every other
-file's generation (turnover trend, filing delays, bounce rates, headcount
-trend all shift with archetype — see the `ARCHETYPE_PARAMS` dicts in each
-`*_source.py`).
+`ground_truth/ground_truth_labels.csv` has five fields, all hidden by design:
+
+- `true_archetype` (`healthy` / `stagnant` / `distressed`) - drives turnover trend, filing delays, bounce rates, headcount trend (see `ARCHETYPE_PARAMS` in each `*_source.py`).
+- `true_monthly_turnover_base_inr` - the shared revenue anchor both GST and bank/UPI generation derive from.
+- `gst_underreport_pct` / `is_gst_underreporter` - ~14% of borrowers (skewed toward distressed) under-report GST turnover relative to true bank-verified revenue. This is what Module 2's cross-source consistency check is meant to catch.
+- `history_available_frac` / `has_short_history` - ~15% of Tier A borrowers have genuinely short history (3.5-11 months, not the full 24) instead of a full track record.
 
 **Do not join this file into feature engineering or model training.** It
-exists for one purpose only: after Module 5/6 produce a health score,
-check whether `distressed`-archetype borrowers actually land in the bottom
-band and `healthy` ones in the top band. If they don't, the scoring logic
-is wrong. If you train directly on this label, you're not testing the
-scoring logic — you're just re-deriving the label you built the data from,
-which will look perfect and prove nothing.
+exists for one purpose only: after Module 2/5/6 produce their outputs,
+check whether they actually recover these known-by-construction patterns
+(do distressed borrowers land in the bottom score band, does Module 2 flag
+the under-reporters, does the completeness tier correctly identify the
+short-history borrowers as thin). If you train directly on these fields,
+you're not testing the logic — you're just re-deriving the label you built
+the data from, which will look perfect and prove nothing.
 
 ## Verified behavior (sanity-checked after generation)
 
@@ -78,29 +108,35 @@ produces separable, directionally correct signal — not just noise:
 
 | Metric | Healthy | Stagnant | Distressed |
 |---|---|---|---|
-| GST: % returns not filed | 0.6% | 2.2% | 8.0% |
-| GST: avg filing delay (days, filed only) | -1.2 | +0.8 | +9.6 |
-| GST: turnover growth ratio (last 3mo / first 3mo) | 1.23 | 1.01 | 0.74 |
-| Bank: cheque bounce rate | 0.21% | 0.85% | 2.45% |
-| Bank: balance trend (last decile avg − first decile avg) | +₹75.4L | +₹34.8L | +₹14.1L |
-| EPFO: avg headcount change over 24mo | +4.6 | +0.6 | -7.7 |
+| GST: % returns not filed | 0.8% | 2.0% | 9.2% |
+| GST: avg filing delay (days, filed only) | -1.3 | +0.8 | +9.1 |
+| GST: turnover growth ratio (last 3mo / first 3mo) | 1.20 | 1.05 | 0.72 |
+| Bank: cheque bounce rate | 0.22% | 0.82% | 2.56% |
+| Bank: balance trend (last decile avg − first decile avg) | +₹336L | +₹164L | +₹66L |
+| EPFO: avg headcount change over 24mo | +4.9 | +0.5 | -6.2 |
 
 All directionally correct (distressed borrowers file late, decline in
-turnover, bounce more, and shed staff). Two known limitations to disclose,
+turnover, bounce more, and shed staff). Known limitations to disclose,
 not hide:
 
 1. **Absolute bank balances run higher than a typical MSME current account**
-   (median ~₹25L, max ~₹1.95Cr in this run). This falls out of ~2,000
-   transactions/year at the amount scale chosen — it's an artifact of the
-   generator's calibration, not a bug in the trend logic. If a judge
-   pressure-tests absolute numbers rather than relative trends, say so
-   plainly and adjust `config.py` scale parameters rather than defend it.
+   (median ~₹1.3Cr, max ~₹6.6Cr in this run - up from v1 after anchoring
+   bank scale to turnover in the v2 correlation fix). This falls out of the
+   transaction volume/amount calibration, not a bug in the trend logic. If
+   a judge pressure-tests absolute numbers rather than relative trends, say
+   so plainly and adjust `config.py` / the `scale` clip in
+   `bank_upi_source.py` rather than defend it.
 2. **All three archetypes are populated with independent random draws per
    borrower** — there's no correlation structure between e.g. sector and
    archetype, or macro shocks affecting multiple borrowers at once
    (seasonal demand shifts are modeled per-sector, but a sector-wide
    downturn isn't). Fine for a scoring-logic demo, not fine as evidence the
    model generalizes to a real portfolio.
+3. **The GST-vs-bank consistency signal is real but weak on its own** -
+   Module 2's backtest against `is_gst_underreporter` gets precision ~0.40,
+   recall ~0.29 from a single annual ratio. See Module 2's README for the
+   honest read on this (short version: one ratio isn't enough, combine
+   with other signals).
 
 ## What a real Module 1 would need that this doesn't have
 
@@ -110,19 +146,20 @@ still solve:
 - Live GSTN/EPFO/bureau API contracts and auth
 - Tampering detection on uploaded (non-AA) bank statements
 - Real refresh-cadence handling per source (GST monthly, bank near-real-time, EPFO monthly, bureau on-pull)
-- Cross-source consistency checks (GST turnover vs bank inflow mismatch) — that's Module 2, not built yet
-- Data-completeness tiering as an *output* of real missing-data patterns, not an input assumption (here, tier is assigned before data is generated; in production it would be discovered by inspecting what actually came back from each source)
+- Cross-source consistency checks (GST turnover vs bank inflow mismatch) — now built, see `module2_data_quality/`
+- Data-completeness tiering as an *output* of real missing-data patterns, not an input assumption — also now built in Module 2, though the "insufficient_data" path is only exercised by the ~15% short-history Tier A minority; it's still not modeling gradual data decay, service outages, or partial-month gaps
 
 ## Files
 
 ```
 msme_data_gen/
-  config.py          - all tunable assumptions (borrower count, tier mix, archetype mix, seed)
-  borrowers.py        - borrower population + hidden ground truth
-  gst_source.py        - GSTR-3B-style generator
-  bank_upi_source.py  - bank/UPI transaction generator
-  epfo_source.py       - EPFO contribution generator
-  ingest.py            - tagging, consent audit log, data lake writer
-  run_generate.py      - entry point
-  data_lake/           - output (generated, not checked in by hand — rerun to regenerate)
+  config.py              - all tunable assumptions (borrower count, tier mix, archetype mix, seed)
+  borrowers.py            - borrower population + hidden ground truth
+  gst_source.py           - GSTR-3B-style generator
+  bank_upi_source.py      - bank/UPI transaction generator
+  epfo_source.py          - EPFO contribution generator
+  truncate_history.py     - post-generation truncation for the short-history borrower minority
+  ingest.py               - tagging, consent audit log, data lake writer
+  run_generate.py         - entry point
+  data_lake/              - output (generated, not checked in by hand — rerun to regenerate)
 ```

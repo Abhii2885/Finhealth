@@ -48,8 +48,9 @@ def generate_gst(internal_borrowers):
         params = ARCHETYPE_PARAMS[b["true_archetype"]]
         seasonality = SECTOR_SEASONALITY.get(b["sector"], {})
 
-        # Base monthly turnover scaled loosely by business age (proxy for scale)
-        base_turnover = rng.uniform(3.5, 45.0) * (1 + min(b["business_age_years"], 15) / 15) * 1e5
+        # Base monthly turnover - shared with bank/UPI generator (borrowers.py)
+        # so declared turnover and bank inflow correlate realistically.
+        base_turnover = b["true_monthly_turnover_base_inr"]
         tax_rate = rng.uniform(*TAX_RATE_RANGE)
 
         turnover_level = base_turnover
@@ -61,7 +62,15 @@ def generate_gst(internal_borrowers):
             season_mult = seasonality.get(month_num, 1.0)
             growth_shock = rng.normal(params["monthly_growth"], params["noise_sd"])
             turnover_level = max(turnover_level * (1 + growth_shock), 5000)
-            declared_turnover = round(turnover_level * season_mult, 2)
+            true_turnover_this_month = turnover_level * season_mult
+            # GST declared turnover = true turnover minus the borrower's
+            # under-reporting fraction (0 for most, material for the
+            # fraud-like minority - see borrowers.py). Bank/UPI inflow
+            # (generated separately) is tied to true_turnover_this_month
+            # instead, so the two sources diverge exactly for
+            # under-reporters - this is what Module 2's cross-source
+            # consistency check is meant to catch.
+            declared_turnover = round(true_turnover_this_month * (1 - b["gst_underreport_pct"]), 2)
 
             itc_claimed = round(declared_turnover * tax_rate * rng.uniform(0.6, 0.95), 2)
             tax_paid = round(max(declared_turnover * tax_rate - itc_claimed, 0) + rng.uniform(-500, 500), 2)

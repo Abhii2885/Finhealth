@@ -1,0 +1,6 @@
+expected_defect,caught
+duplicate_period,True
+future_txn_date,True
+negative_turnover,True
+non_positive_amount,True
+orphan_borrower_id,True
