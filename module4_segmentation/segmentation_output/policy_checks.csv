@@ -1,0 +1,4 @@
+check,pass,detail
+scorable borrowers' effective weights sum to ~1.0 (tolerance 1e-3 for rounding),True,"400 scorable borrowers checked, max deviation 9.999999999998899e-05"
+non-scorable borrowers have zero effective weight everywhere,True,0 non-scorable borrowers checked
+concentration_risk weight always 0 (not_computable_in_prototype for everyone),True,max observed weight: 0.0
