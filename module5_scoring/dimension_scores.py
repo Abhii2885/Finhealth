@@ -30,22 +30,26 @@ def _percentile_score(series, higher_is_healthier):
 
 def build_dimension_scores(features_df):
     out = features_df[["borrower_id"]].copy()
+    feature_score_cols_by_dim = {}
 
     for dimension, feature_directions in DIMENSION_SCORING_FEATURES.items():
         per_feature_scores = []
         for feature, higher_is_healthier in feature_directions.items():
             if feature not in features_df.columns:
                 continue
-            score_col = f"_score_{feature}"
+            # kept (not dropped) so Module 6 can identify top drivers per
+            # dimension without recomputing/duplicating this scoring logic
+            score_col = f"featscore__{dimension}__{feature}"
             out[score_col] = _percentile_score(features_df[feature], higher_is_healthier)
             per_feature_scores.append(score_col)
 
+        feature_score_cols_by_dim[dimension] = per_feature_scores
         if per_feature_scores:
             out[f"{dimension}_score_raw"] = out[per_feature_scores].mean(axis=1, skipna=True)
         else:
             out[f"{dimension}_score_raw"] = float("nan")
 
-        out = out.drop(columns=per_feature_scores)
+    out.attrs["feature_score_cols_by_dim"] = feature_score_cols_by_dim
 
     # Transparent, capped adjustment to revenue_growth_signal from Module 2's
     # consistency flag - see config.CONSISTENCY_FLAG_PENALTY for why this is

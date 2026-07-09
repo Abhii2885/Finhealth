@@ -40,6 +40,11 @@ def main():
     print("\nComputing per-dimension percentile-rank scores...")
     dim_scores = build_dimension_scores(features)
 
+    feature_score_cols = [c for cols in dim_scores.attrs["feature_score_cols_by_dim"].values() for c in cols]
+    feature_scores_path = os.path.join(OUTPUT_DIR, "feature_scores.csv")
+    dim_scores[["borrower_id"] + feature_score_cols].to_csv(feature_scores_path, index=False)
+    print(f"  per-feature percentile scores (for Module 6's top-drivers) -> {feature_scores_path}")
+
     print("Aggregating into composite score + grade using Module 4's weights...")
     result = build_composite(dim_scores, segmentation)
 
