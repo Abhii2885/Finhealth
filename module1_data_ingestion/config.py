@@ -8,9 +8,12 @@ demo, not a calibrated industry parameter. They are documented so a
 teammate (or a judge) can see exactly what was assumed and challenge it.
 """
 
+import os
 import numpy as np
 
-RANDOM_SEED = 42
+# Overridable via env var so Module 8 can generate a genuinely independent
+# second cohort (for real drift comparison) without editing this file.
+RANDOM_SEED = int(os.environ.get("MSME_SEED", 42))
 rng = np.random.default_rng(RANDOM_SEED)
 
 N_BORROWERS = 400

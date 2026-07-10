@@ -1,0 +1,8 @@
+{
+  "control_psi_no_real_shift": 0.0842,
+  "control_classification": "no significant shift",
+  "control_passed": true,
+  "injected_shift_psi": 2.8306,
+  "injected_classification": "significant shift - investigate",
+  "injected_shift_detected": true
+}
