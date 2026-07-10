@@ -14,7 +14,7 @@
         "borrower_id": "MSME-00001",
         "consent_id": "unknown-consent-id",
         "as_of_date": "2026-07-10",
-        "composite_score": 35.79,
+        "composite_score": 35.86,
         "grade": "D - Weak",
         "segment_label": "Full \u2014 5 dimensions available",
         "scorable": true,
@@ -22,7 +22,7 @@
           {
             "key": "liquidity_cash_flow",
             "label": "Liquidity & Cash Flow",
-            "score": 64.03125,
+            "score": 64.34375,
             "weight": 0.2222,
             "status": "available",
             "top_positive_driver": "Outflow volatility",
@@ -84,7 +84,7 @@
         "borrower_id": "MSME-00002",
         "consent_id": "unknown-consent-id",
         "as_of_date": "2026-07-10",
-        "composite_score": 71.19,
+        "composite_score": 70.53,
         "grade": "B - Good",
         "segment_label": "Reduced \u2014 4 dimensions available (structurally unavailable, not a data gap)",
         "scorable": true,
@@ -92,7 +92,7 @@
           {
             "key": "liquidity_cash_flow",
             "label": "Liquidity & Cash Flow",
-            "score": 79.6875,
+            "score": 77.21875,
             "weight": 0.2667,
             "status": "available",
             "top_positive_driver": "Bank balance trend",
@@ -154,7 +154,7 @@
         "borrower_id": "MSME-00003",
         "consent_id": "unknown-consent-id",
         "as_of_date": "2026-07-10",
-        "composite_score": 20.02,
+        "composite_score": 19.63,
         "grade": "E - Poor",
         "segment_label": "Full \u2014 5 dimensions available",
         "scorable": true,
@@ -162,7 +162,7 @@
           {
             "key": "liquidity_cash_flow",
             "label": "Liquidity & Cash Flow",
-            "score": 23.03125,
+            "score": 21.28125,
             "weight": 0.2222,
             "status": "available",
             "top_positive_driver": "Transaction regularity",
@@ -236,7 +236,7 @@
       "response": {
         "borrower_id": "MSME-00001",
         "status": "queued",
-        "received_at": "2026-07-10T15:18:01.590259Z",
+        "received_at": "2026-07-10T16:23:11.391792Z",
         "note": "Logged only - this prototype does not actually trigger a recompute. A production version would re-run Modules 1-6 (or an incremental equivalent) for this borrower and invalidate their cached score card."
       }
     },
@@ -257,7 +257,7 @@
             "consent_id": "demo-consent-id-001",
             "event_type": "new_data_available",
             "source": "bank_upi_transactions",
-            "received_at": "2026-07-10T15:18:01.590259Z"
+            "received_at": "2026-07-10T16:23:11.391792Z"
           }
         ]
       }

@@ -43,6 +43,14 @@ def main():
         os.path.join(OUTPUT_DIR, "segment_distribution.csv"), index=False
     )
 
+    print("\nData confidence breakdown (is the insufficient-data discount actually doing anything?):")
+    print(seg["data_confidence"].value_counts().to_string())
+    n_noop = (seg["data_confidence"] == "discount_is_noop_all_dims_uniformly_thin").sum()
+    if n_noop:
+        print(f"  -> {n_noop} borrower(s) have every included dimension uniformly flagged "
+              f"insufficient_data, so INSUFFICIENT_DATA_WEIGHT_MULTIPLIER has zero effect on "
+              f"their relative weights (see segmentation.py's _data_confidence docstring for the math).")
+
     print("\nInternal consistency checks...")
     checks = run_checks(seg)
     checks.to_csv(os.path.join(OUTPUT_DIR, "policy_checks.csv"), index=False)

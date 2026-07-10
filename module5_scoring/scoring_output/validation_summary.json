@@ -1,8 +1,8 @@
 {
   "composite_means_by_archetype": {
-    "healthy": 65.79,
-    "stagnant": 44.71,
-    "distressed": 19.07
+    "healthy": 66.02,
+    "stagnant": 44.59,
+    "distressed": 18.73
   },
   "ordering_correct": true
 }

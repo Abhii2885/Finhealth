@@ -34,6 +34,35 @@ def _segment_label(row):
     return f"Reduced — {n} dimensions available (structurally unavailable, not a data gap)"
 
 
+def _data_confidence(row):
+    """Whether INSUFFICIENT_DATA_WEIGHT_MULTIPLIER actually changes this
+    borrower's effective weights, or is a mathematical no-op.
+
+    Scaling every included dimension's raw weight by the same constant c
+    and renormalizing gives (w_i*c) / sum(w_j*c) = w_i / sum(w_j) - i.e.
+    identical to not discounting at all. The multiplier only changes
+    relative weighting when it applies to SOME but not ALL of a
+    borrower's included dimensions.
+
+    This was found while investigating Module 8's short-history bias
+    finding: all 39 thin-file borrowers have GST and bank data truncated
+    together, so every one of their included dimensions carries the same
+    insufficient_data status - meaning this module's discount has never
+    had any effect on their scores. The bias traced instead to a window-
+    length-scaling bug in Module 3's balance_trend_pct (fixed - see that
+    module's README) plus a smaller, genuine information-limitation in
+    several ratio-based growth features. Exposed here explicitly so no
+    downstream consumer assumes this module is doing something it isn't.
+    """
+    included = [d for d in DIMENSIONS if row[f"{d}_effective_weight"] > 0]
+    discounted = [d for d in DIMENSIONS if row[f"{d}_status"] == "insufficient_data"]
+    if not discounted:
+        return "full"
+    if len(discounted) < len(included):
+        return "discount_applied"
+    return "discount_is_noop_all_dims_uniformly_thin"
+
+
 def build_segmentation(dim_avail_df):
     rows = []
     for _, r in dim_avail_df.iterrows():
@@ -60,4 +89,5 @@ def build_segmentation(dim_avail_df):
 
     out = pd.DataFrame(rows)
     out["segment_label"] = out.apply(_segment_label, axis=1)
+    out["data_confidence"] = out.apply(_data_confidence, axis=1)
     return out

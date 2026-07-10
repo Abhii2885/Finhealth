@@ -41,7 +41,7 @@ Produces `segmentation_output/`:
 
 | File | Description |
 |---|---|
-| `segmentation_policy.csv` | Per borrower: status + effective weight per dimension, `n_dimensions_included`, `scorable`, `segment_label` |
+| `segmentation_policy.csv` | Per borrower: status + effective weight per dimension, `n_dimensions_included`, `scorable`, `segment_label`, `data_confidence` |
 | `policy_checks.csv` | Internal consistency checks (weights sum to 1.0, non-scorable borrowers get zero weight everywhere, concentration_risk always excluded) |
 | `segment_distribution.csv` | Counts per segment label |
 
@@ -105,6 +105,46 @@ data. **The composite score Module 5 builds from this policy is
 effectively a 5-dimension score (4 for Tier A), not the 6-dimension score
 implied by the architecture doc.** Say this plainly if it comes up.
 
+## Correction: the 0.5 discount is NOT what caused Module 8's short-history bias
+
+Module 8's monitoring originally (and wrongly) attributed the short-history
+fairness gap to "Module 4's 50% insufficient-data discount interacting with
+percentile-rank scoring." That diagnosis doesn't survive the math:
+
+Scaling every included dimension's raw weight by the same constant `c` and
+renormalizing gives `(w_i·c) / Σ(w_j·c) = w_i / Σw_j` — **identical relative
+weights to not discounting at all.** The discount only changes anything
+when it applies to *some but not all* of a borrower's included dimensions.
+
+For the 39 short-history borrowers, Module 1 truncates GST and bank history
+together, so every one of their included dimensions carries the same
+`insufficient_data` status — meaning this module's 0.5× multiplier has
+**never had any effect on their scores.** Verified by rerunning Module 4
+with the discount mechanism producing byte-identical effective weights to
+the undiscounted case for this group.
+
+A new `data_confidence` column now makes this explicit per borrower:
+`full` (no discount applies), `discount_applied` (mixed statuses — the
+multiplier has a real effect), or `discount_is_noop_all_dims_uniformly_thin`
+(every included dimension shares the same status — mathematically inert).
+In this run, all 39 short-history borrowers land in the last bucket; 0
+borrowers anywhere in this dataset land in `discount_applied` — meaning the
+discount mechanism, as currently exercised by this synthetic dataset, has
+never once changed a composite score. That's worth knowing before trusting
+it in a real deployment.
+
+**The actual bug was in Module 3** (`balance_trend_pct` computed a raw %
+change over however much history was available, which is not comparable
+across different window lengths) — fixed there, see that module's README
+for the before/after. A smaller residual short-history gap remains after
+that fix (see Module 8's README) and reflects genuinely less trend signal
+in a shorter window across several ratio-based growth features, not a
+mechanism this module's weights can fix. If a lender-facing product wants
+to actually communicate that reduced certainty, the right lever is probably
+a confidence-adjusted score *range* surfaced at the API layer (Module 7),
+not a further tweak to these weights — flagged as a real next step, not
+implemented here.
+
 ## Internal consistency checks
 
 All 3 checks pass: scorable borrowers' effective weights sum to 1.0
@@ -131,6 +171,13 @@ something this module can prove.
    coverage and one at 10% coverage get the same discount. A production
    version might scale the discount continuously with the actual
    coverage ratio instead of a step function.
+5. **The discount multiplier is a no-op for any borrower whose included
+   dimensions are all uniformly `insufficient_data`** — see the correction
+   above. In this dataset that's true for 100% of the borrowers who ever
+   hit the discount path (39/39), meaning the discount has not yet done
+   anything in this prototype. It would matter for a borrower with a mix
+   of `available` and `insufficient_data` dimensions, which doesn't happen
+   to occur in this synthetic cohort — untested, not proven safe.
 
 ## Files
 

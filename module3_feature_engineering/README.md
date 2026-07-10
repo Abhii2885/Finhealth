@@ -43,7 +43,7 @@ check the feature engineering captured real signal:
 
 | Feature | Healthy | Stagnant | Distressed | Expected direction correct? |
 |---|---|---|---|---|
-| balance_trend_pct | 1691.6 | 1196.7 | 593.2 | Yes |
+| balance_trend_pct | 16.8 | 14.9 | 10.2 | Yes |
 | monthly_inflow_volatility | 0.122 | 0.114 | 0.175 | **No** — distressed clearly highest (right end), but stagnant < healthy breaks strict ordering |
 | monthly_outflow_volatility | 0.102 | 0.112 | 0.166 | Yes |
 | txn_frequency_stability | 0.082 | 0.084 | 0.111 | Yes |
@@ -68,6 +68,45 @@ midpoint between the other two — a real, minor calibration gap in Module
 1, not a bug in this module's feature logic. Worth a one-line fix in
 `msme_data_gen`'s archetype params if this comes up in a pitch, but not
 worth blocking Module 3 on.
+
+## Bug fix: balance_trend_pct was not comparable across history lengths
+
+Module 8's monitoring found that short-history (thin-file) borrowers were
+scored unevenly by archetype — healthy ones penalized hardest. Investigating
+that finding here (not in Module 4, where it was originally suspected —
+see Module 4's README for why that mechanism turned out to be a math
+no-op) traced it to this feature.
+
+**The bug:** the original formula compared the mean balance in the first
+10% of observed days to the mean in the last 10%, and reported raw %
+change over the whole window. That's a cumulative change over however
+much time happens to be observed — a borrower with 24 months of history
+has ~7x more time for the same underlying trend to compound than a
+borrower with 3.5 months. Before the fix, raw `balance_trend_pct` means
+were **593–1868%** for full-history borrowers vs. **9–45%** for
+short-history borrowers of the *same archetype* — an order-of-magnitude
+gap driven by elapsed time, not by how healthy the business actually is.
+Percentile-ranking that number in Module 5 against a population dominated
+by full-history borrowers then pushed every short-history borrower
+(healthy, stagnant, and distressed alike) into the single-digit
+percentiles on this feature.
+
+**The fix:** fit a linear trend (OLS slope of balance vs. day index) using
+all available days, expressed as % of average balance per 30 days — a
+rate, not a cumulative change, so it's comparable regardless of window
+length. New raw means (see updated table above): healthy 16.8, stagnant
+14.9, distressed 10.2 — still correctly ordered, now on a believable
+scale for both full- and short-history borrowers.
+
+**What this did and didn't fix:** it removed a genuine, provable
+mechanical bug in one feature. It did **not** fully close Module 8's
+short-history fairness gap — see that module's README for the measured
+before/after. Several other growth-rate features (`turnover_growth_rate`,
+`headcount_growth_rate`, `wage_bill_growth_rate`, gap #4 below) are
+ratio-based rather than cumulative, so they don't have this same scaling
+defect, but they are still noisier and closer to a neutral 1.0 on short
+windows — that's a genuine information limit (less time observed = less
+trend visible), not a formula bug, and wasn't changed.
 
 ## Known gaps (things this module structurally cannot do)
 

@@ -2,36 +2,36 @@
   "raw_tier_comparison": [
     {
       "tier": "A",
-      "mean": 48.97,
+      "mean": 49.03,
       "count": 244
     },
     {
       "tier": "C",
-      "mean": 50.54,
+      "mean": 50.45,
       "count": 156
     }
   ],
   "counterfactual_archetype_comparison": [
     {
       "true_archetype": "distressed",
-      "tier_a_actual_4dim": 17.25,
-      "tier_c_counterfactual_4dim": 19.73,
-      "tier_c_actual_5dim": 20.02,
-      "tier_a_vs_tier_c_counterfactual_gap": -2.48
+      "tier_a_actual_4dim": 16.92,
+      "tier_c_counterfactual_4dim": 19.21,
+      "tier_c_actual_5dim": 19.59,
+      "tier_a_vs_tier_c_counterfactual_gap": -2.29
     },
     {
       "true_archetype": "healthy",
-      "tier_a_actual_4dim": 67.08,
-      "tier_c_counterfactual_4dim": 67.09,
-      "tier_c_actual_5dim": 66.21,
-      "tier_a_vs_tier_c_counterfactual_gap": -0.01
+      "tier_a_actual_4dim": 67.27,
+      "tier_c_counterfactual_4dim": 67.27,
+      "tier_c_actual_5dim": 66.36,
+      "tier_a_vs_tier_c_counterfactual_gap": 0.0
     },
     {
       "true_archetype": "stagnant",
-      "tier_a_actual_4dim": 44.18,
-      "tier_c_counterfactual_4dim": 45.32,
-      "tier_c_actual_5dim": 46.34,
-      "tier_a_vs_tier_c_counterfactual_gap": -1.14
+      "tier_a_actual_4dim": 44.11,
+      "tier_c_counterfactual_4dim": 45.02,
+      "tier_c_actual_5dim": 46.1,
+      "tier_a_vs_tier_c_counterfactual_gap": -0.91
     }
   ],
   "short_history_fairness_check": [
@@ -39,7 +39,7 @@
       "index": 0,
       "true_archetype": "distressed",
       "has_short_history": false,
-      "mean": 17.25,
+      "mean": 16.92,
       "count": 43
     },
     {
@@ -53,28 +53,28 @@
       "index": 2,
       "true_archetype": "healthy",
       "has_short_history": false,
-      "mean": 67.08,
+      "mean": 67.27,
       "count": 100
     },
     {
       "index": 3,
       "true_archetype": "healthy",
       "has_short_history": true,
-      "mean": 57.33,
+      "mean": 58.09,
       "count": 19
     },
     {
       "index": 4,
       "true_archetype": "stagnant",
       "has_short_history": false,
-      "mean": 44.18,
+      "mean": 44.11,
       "count": 62
     },
     {
       "index": 5,
       "true_archetype": "stagnant",
       "has_short_history": true,
-      "mean": 41.17,
+      "mean": 41.3,
       "count": 11
     }
   ]
