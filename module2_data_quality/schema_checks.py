@@ -120,6 +120,52 @@ def check_epfo(epfo_df, valid_borrower_ids, has_epfo_ids, today):
     return issues
 
 
+def check_balance_sheet(balance_sheet_df, valid_borrower_ids):
+    issues = []
+    if not len(balance_sheet_df):
+        return issues
+
+    orphan = ~balance_sheet_df["borrower_id"].isin(valid_borrower_ids)
+    if orphan.any():
+        for bid in balance_sheet_df.loc[orphan, "borrower_id"].unique():
+            issues.append({"source": "balance_sheet", "check": "orphan_borrower_id", "borrower_id": bid,
+                            "detail": "borrower_id not present in borrower_master"})
+
+    bad_liabilities = balance_sheet_df["current_liabilities_inr"] <= 0
+    if bad_liabilities.any():
+        for bid in balance_sheet_df.loc[bad_liabilities, "borrower_id"].unique():
+            issues.append({"source": "balance_sheet", "check": "non_positive_current_liabilities", "borrower_id": bid,
+                            "detail": "current_liabilities_inr <= 0"})
+
+    bad_assets = balance_sheet_df["total_assets_inr"] <= 0
+    if bad_assets.any():
+        for bid in balance_sheet_df.loc[bad_assets, "borrower_id"].unique():
+            issues.append({"source": "balance_sheet", "check": "non_positive_total_assets", "borrower_id": bid,
+                            "detail": "total_assets_inr <= 0"})
+
+    return issues
+
+
+def check_loan_facilities(loan_facilities_df, valid_borrower_ids):
+    issues = []
+    if not len(loan_facilities_df):
+        return issues
+
+    orphan = ~loan_facilities_df["borrower_id"].isin(valid_borrower_ids)
+    if orphan.any():
+        for bid in loan_facilities_df.loc[orphan, "borrower_id"].unique():
+            issues.append({"source": "loan_facilities", "check": "orphan_borrower_id", "borrower_id": bid,
+                            "detail": "borrower_id not present in borrower_master"})
+
+    over_outstanding = loan_facilities_df["principal_outstanding_inr"] > loan_facilities_df["original_principal_inr"]
+    if over_outstanding.any():
+        for bid in loan_facilities_df.loc[over_outstanding, "borrower_id"].unique():
+            issues.append({"source": "loan_facilities", "check": "outstanding_exceeds_original", "borrower_id": bid,
+                            "detail": "principal_outstanding_inr > original_principal_inr"})
+
+    return issues
+
+
 def run_all_checks(lake, today=None):
     if today is None:
         today = DATA_SNAPSHOT_DATE
@@ -130,4 +176,6 @@ def run_all_checks(lake, today=None):
     issues += check_gst(lake["gst"], valid_ids, today)
     issues += check_bank(lake["bank"], valid_ids, today)
     issues += check_epfo(lake["epfo"], valid_ids, has_epfo_ids, today)
+    issues += check_balance_sheet(lake["balance_sheet"], valid_ids)
+    issues += check_loan_facilities(lake["loan_facilities"], valid_ids)
     return pd.DataFrame(issues, columns=["source", "check", "borrower_id", "detail"])

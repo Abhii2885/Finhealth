@@ -1,24 +1,24 @@
 {
   "trend_indicator_means_by_archetype_and_checkpoint": {
     "0.25": {
-      "healthy": 67.57,
-      "stagnant": 41.64,
-      "distressed": 21.32
+      "healthy": 68.83,
+      "stagnant": 40.39,
+      "distressed": 20.07
     },
     "0.5": {
-      "healthy": 69.57,
-      "stagnant": 40.18,
-      "distressed": 18.72
+      "healthy": 70.16,
+      "stagnant": 39.45,
+      "distressed": 18.05
     },
     "0.75": {
-      "healthy": 70.62,
-      "stagnant": 39.59,
-      "distressed": 17.11
+      "healthy": 71.06,
+      "stagnant": 38.82,
+      "distressed": 16.8
     },
     "1.0": {
-      "healthy": 71.23,
-      "stagnant": 39.04,
-      "distressed": 16.48
+      "healthy": 71.58,
+      "stagnant": 38.6,
+      "distressed": 15.92
     }
   },
   "final_checkpoint_ordering_correct": true,

@@ -50,20 +50,19 @@ def main():
     print(bias_results["raw_tier_comparison"].to_string())
     print("\nArchetype-controlled comparison:")
     print(bias_results["archetype_controlled_comparison"].to_string())
-    print("\nCounterfactual reweighting test (Tier A actual vs Tier C recomputed with Tier A's 4-dim weights):")
-    print(bias_results["counterfactual_archetype_comparison"].to_string())
+    print("\nCounterfactual reweighting test:")
+    print(f"  {bias_results['counterfactual_status']['status'].upper()} - {bias_results['counterfactual_status']['reason']}")
     print("\nShort-history fairness check (within Tier A):")
     print(bias_results["short_history_fairness_check"].to_string())
 
     bias_json = {
         "raw_tier_comparison": _df_to_jsonable(bias_results["raw_tier_comparison"]),
-        "counterfactual_archetype_comparison": _df_to_jsonable(bias_results["counterfactual_archetype_comparison"]),
+        "counterfactual_status": bias_results["counterfactual_status"],
         "short_history_fairness_check": _df_to_jsonable(bias_results["short_history_fairness_check"]),
     }
     with open(os.path.join(OUTPUT_DIR, "bias_check.json"), "w") as f:
         json.dump(bias_json, f, indent=2, default=str)
     bias_results["archetype_controlled_comparison"].to_csv(os.path.join(OUTPUT_DIR, "archetype_controlled_comparison.csv"))
-    bias_results["per_borrower_counterfactual"].to_csv(os.path.join(OUTPUT_DIR, "per_borrower_counterfactual.csv"), index=False)
 
     print("\n[2/3] Drift self-test (PSI control + injected shift)...")
     selftest = run_drift_selftest(scores)

@@ -18,7 +18,7 @@ import threading
 import urllib.request
 import urllib.error
 
-from config import SERVER_HOST, SERVER_PORT, OUTPUT_DIR, DEFAULT_SCORING_DIR, DEFAULT_EXPLAINABILITY_DIR, DEFAULT_SEGMENTATION_DIR
+from config import SERVER_HOST, SERVER_PORT, OUTPUT_DIR, DEFAULT_SCORING_DIR, DEFAULT_EXPLAINABILITY_DIR, DEFAULT_SEGMENTATION_DIR, DEFAULT_DATA_LAKE_DIR
 from data_provider import ScoreCardStore
 from server import run_server
 from schema import SCORE_CARD_RESPONSE_SCHEMA
@@ -61,10 +61,11 @@ def main():
     scoring_dir = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_SCORING_DIR
     explainability_dir = sys.argv[2] if len(sys.argv) > 2 else DEFAULT_EXPLAINABILITY_DIR
     segmentation_dir = sys.argv[3] if len(sys.argv) > 3 else DEFAULT_SEGMENTATION_DIR
+    data_lake_dir = sys.argv[4] if len(sys.argv) > 4 else DEFAULT_DATA_LAKE_DIR
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
     print("Loading score data + starting mock server in a background thread...")
-    store = ScoreCardStore(scoring_dir, explainability_dir, segmentation_dir)
+    store = ScoreCardStore(scoring_dir, explainability_dir, segmentation_dir, data_lake_dir)
     httpd = run_server(SERVER_HOST, SERVER_PORT, store)
     thread = threading.Thread(target=httpd.serve_forever, daemon=True)
     thread.start()
@@ -132,12 +133,46 @@ def main():
         logged_ok = any(e.get("borrower_id") == sample_ids[0] for e in body.get("events", []))
         print(f"GET /uli/v1/consent-refresh/log -> {status}, refresh event present: {logged_ok}")
 
+        # 7. applicant-inputs webhook - the real future-user-input surface
+        applicant_payload = {"balance_sheet_available": True, "projected_revenue_next_year_inr": 5_000_000}
+        status, body = _post(f"{base}/uli/v1/score-card/{sample_ids[0]}/applicant-inputs", applicant_payload)
+        log["calls"].append({"call": "POST /uli/v1/score-card/.../applicant-inputs", "status": status,
+                              "request": applicant_payload, "response": body})
+        print(f"POST /uli/v1/score-card/{sample_ids[0]}/applicant-inputs -> {status} {body}")
+
+        status, body = _get(f"{base}/uli/v1/applicant-inputs/log")
+        applicant_logged_ok = any(e.get("borrower_id") == sample_ids[0] for e in body.get("events", []))
+        log["calls"].append({"call": "GET /uli/v1/applicant-inputs/log", "status": status, "response": body})
+        print(f"GET /uli/v1/applicant-inputs/log -> {status}, event present: {applicant_logged_ok}")
+
+        # 8. score override with mandatory comment (happy path)
+        override_payload = {"parameter": "capacity.dscr", "original_score": 70.0, "overridden_score": 85.0,
+                             "comment": "Verified stronger cash position from bank statement not yet reflected."}
+        status, body = _post(f"{base}/uli/v1/score-card/{sample_ids[0]}/override", override_payload)
+        log["calls"].append({"call": "POST /uli/v1/score-card/.../override", "status": status,
+                              "request": override_payload, "response": body})
+        print(f"POST /uli/v1/score-card/{sample_ids[0]}/override -> {status} {body}")
+
+        # 9. override missing the required comment -> should 400 cleanly
+        status, body = _post(f"{base}/uli/v1/score-card/{sample_ids[0]}/override",
+                              {"parameter": "capacity.dscr", "overridden_score": 85.0, "comment": ""})
+        log["calls"].append({"call": "POST /uli/v1/score-card/.../override (empty comment, expect 400)",
+                              "status": status, "response": body})
+        print(f"POST override missing comment -> {status} {body}")
+
+        status, body = _get(f"{base}/uli/v1/override/log")
+        override_logged_ok = any(e.get("borrower_id") == sample_ids[0] for e in body.get("events", []))
+        log["calls"].append({"call": "GET /uli/v1/override/log", "status": status, "response": body})
+        print(f"GET /uli/v1/override/log -> {status}, event present: {override_logged_ok}")
+
         log["summary"] = {
             "sample_borrowers_tested": sample_ids,
             "all_score_cards_schema_valid": all(
                 c["schema_validation"]["valid"] for c in log["calls"] if "schema_validation" in c
             ),
             "consent_refresh_event_logged": logged_ok,
+            "applicant_inputs_event_logged": applicant_logged_ok,
+            "override_event_logged": override_logged_ok,
         }
 
     finally:

@@ -43,8 +43,12 @@ def _period_range(n_months):
 def generate_gst(internal_borrowers):
     rows = []
     periods = _period_range(GST_EPFO_MONTHS)
+    # Only GST-registered borrowers file returns - the ~10% of Tier A
+    # below the registration threshold get self_declared_turnover_source.py
+    # instead (see config.NON_GST_SHARE_TIER_A).
+    gst_borrowers = internal_borrowers[internal_borrowers["is_gst_registered"]]
 
-    for _, b in internal_borrowers.iterrows():
+    for _, b in gst_borrowers.iterrows():
         params = ARCHETYPE_PARAMS[b["true_archetype"]]
         seasonality = SECTOR_SEASONALITY.get(b["sector"], {})
 

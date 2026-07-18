@@ -11,7 +11,7 @@ writes quality_output/ with:
     completeness_report.csv    - per-borrower per-source coverage + status
     consistency_report.csv     - GST-vs-bank ratio + consistency flag per borrower
     consistency_backtest.json  - precision/recall of the consistency flag against hidden ground truth
-    dimension_availability.csv - per-borrower, per-dimension computability
+    submetric_availability.csv - per-borrower, per (dimension, submetric) computability (5C framework)
     quality_tier.csv           - re-derived completeness tier + EPFO reliability flag
 """
 
@@ -26,7 +26,7 @@ from schema_checks import run_all_checks
 from selftest import run_selftest
 from completeness import build_completeness_report
 from consistency import compute_consistency, backtest_against_ground_truth
-from tiering import build_dimension_availability, build_quality_tier
+from tiering import build_submetric_availability, build_quality_tier
 
 
 def main():
@@ -69,9 +69,15 @@ def main():
           f"recall={backtest['recall']} "
           f"(flagged {backtest['n_flagged']} of {backtest['n_actual_underreporters']} actual under-reporters)")
 
-    print("\n[5/5] Dimension availability + quality tiering...")
-    dim_avail = build_dimension_availability(completeness)
-    dim_avail.to_csv(os.path.join(OUTPUT_DIR, "dimension_availability.csv"), index=False)
+    print("\n[5/5] Submetric availability (5C framework) + quality tiering...")
+    submetric_avail = build_submetric_availability(completeness)
+    submetric_avail.to_csv(os.path.join(OUTPUT_DIR, "submetric_availability.csv"), index=False)
+    status_cols = [c for c in submetric_avail.columns if c.endswith("_status")]
+    n_not_applicable = (submetric_avail[status_cols] == "not_applicable").sum().sum()
+    n_insufficient = (submetric_avail[status_cols] == "insufficient_data").sum().sum()
+    n_available = (submetric_avail[status_cols] == "available").sum().sum()
+    print(f"  {len(status_cols)} submetrics x {len(submetric_avail)} borrowers: "
+          f"{n_available} available, {n_insufficient} insufficient_data, {n_not_applicable} not_applicable")
 
     quality_tier = build_quality_tier(completeness)
     quality_tier.to_csv(os.path.join(OUTPUT_DIR, "quality_tier.csv"), index=False)

@@ -1,0 +1,22 @@
+{
+  "challenger_means_by_archetype": {
+    "healthy": 85.0,
+    "stagnant": 54.93,
+    "distressed": 20.1
+  },
+  "champion_means_by_archetype": {
+    "healthy": 74.29,
+    "stagnant": 60.1,
+    "distressed": 42.49
+  },
+  "challenger_ordering_correct": true,
+  "note": "challenger_ordering_correct uses the same healthy>stagnant>distressed backtest as the champion's own validate.py - both should agree on population-level ordering even though they use different mechanisms (rule-based tiers vs. learned nonlinear splits).",
+  "anomaly_rate_by_archetype": {
+    "healthy": 0.0,
+    "stagnant": 0.017,
+    "distressed": 0.209
+  },
+  "anomaly_rate_note": "Not a pass/fail check - anomaly detection flags UNUSUAL feature profiles, not unhealthy ones. A higher rate among distressed borrowers would be a plausible finding (distress often looks structurally different) but is not required for this module to be considered correct.",
+  "n_flagged_for_review": 35,
+  "pct_flagged_for_review": 8.8
+}

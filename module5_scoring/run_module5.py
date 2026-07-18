@@ -37,20 +37,20 @@ def main():
     print(f"Loading hidden ground truth from {data_lake_dir} ...")
     ground_truth = load_ground_truth(data_lake_dir)
 
-    print("\nComputing per-dimension percentile-rank scores...")
-    dim_scores = build_dimension_scores(features)
+    print("\nComputing per-submetric scores (percentile / tiered / band_distance / lookup_table / direct_ratio)...")
+    dim_scores = build_dimension_scores(features, segmentation)
 
-    feature_score_cols = [c for cols in dim_scores.attrs["feature_score_cols_by_dim"].values() for c in cols]
+    submetric_score_cols = [f"featscore__{dim}__{s}" for dim, ss in dim_scores.attrs["submetrics_by_dim"].items() for s in ss]
     feature_scores_path = os.path.join(OUTPUT_DIR, "feature_scores.csv")
-    dim_scores[["borrower_id"] + feature_score_cols].to_csv(feature_scores_path, index=False)
-    print(f"  per-feature percentile scores (for Module 6's top-drivers) -> {feature_scores_path}")
+    dim_scores[["borrower_id"] + submetric_score_cols].to_csv(feature_scores_path, index=False)
+    print(f"  per-submetric scores (for Module 6's top-drivers) -> {feature_scores_path}")
 
     print("Aggregating into composite score + grade using Module 4's weights...")
     result = build_composite(dim_scores, segmentation)
 
     output_cols = ["borrower_id"] + \
         [c for c in result.columns if c.endswith("_score") or c == "composite_score" or c == "grade"] + \
-        ["revenue_growth_signal_consistency_penalty", "scorable", "segment_label"]
+        ["capacity_consistency_penalty", "scorable", "segment_label"]
     output_cols = [c for c in dict.fromkeys(output_cols) if c in result.columns]
     scores_path = os.path.join(OUTPUT_DIR, "borrower_scores.csv")
     result[output_cols].to_csv(scores_path, index=False)

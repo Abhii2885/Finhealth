@@ -1,3 +1,14 @@
+# Generated synthetic data lake (61MB - one bank-transactions file alone is
+# 57MB, past GitHub's 50MB warning). Fully reproducible:
+#   cd module1_data_ingestion && python3 run_generate.py
+module1_data_ingestion/data_lake/
+
+# Python
 __pycache__/
 *.pyc
+
+# macOS
 .DS_Store
+
+# Local Claude Code settings (machine-specific tool permissions)
+.claude/

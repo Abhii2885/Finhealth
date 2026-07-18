@@ -29,6 +29,7 @@ import os
 DEFAULT_SCORING_DIR = os.path.join(os.path.dirname(__file__), "..", "module5_scoring", "scoring_output")
 DEFAULT_EXPLAINABILITY_DIR = os.path.join(os.path.dirname(__file__), "..", "module6_explainability", "explainability_output")
 DEFAULT_SEGMENTATION_DIR = os.path.join(os.path.dirname(__file__), "..", "module4_segmentation", "segmentation_output")
+DEFAULT_DATA_LAKE_DIR = os.path.join(os.path.dirname(__file__), "..", "module1_data_ingestion", "data_lake")
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "integration_output")
 
 SERVER_HOST = "127.0.0.1"

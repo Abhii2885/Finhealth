@@ -1,0 +1,94 @@
+{
+  "n_train": 280,
+  "n_test": 120,
+  "train_mae": 0.76,
+  "test_mae": 1.79,
+  "train_r2": 0.996,
+  "test_r2": 0.974,
+  "feature_importance": [
+    {
+      "feature": "cheque_bounce_rate",
+      "importance": 23.877
+    },
+    {
+      "feature": "utility_payment_timeliness",
+      "importance": 0.1897
+    },
+    {
+      "feature": "gst_ontime_filing_ratio",
+      "importance": 0.1109
+    },
+    {
+      "feature": "revenue_cagr_3yr",
+      "importance": 0.1091
+    },
+    {
+      "feature": "current_ratio",
+      "importance": 0.0454
+    },
+    {
+      "feature": "salary_payment_timeliness",
+      "importance": 0.0448
+    },
+    {
+      "feature": "rent_payment_timeliness",
+      "importance": 0.0352
+    },
+    {
+      "feature": "owner_time_in_business_years",
+      "importance": 0.0108
+    },
+    {
+      "feature": "epfo_ontime_remittance_ratio",
+      "importance": 0.0031
+    },
+    {
+      "feature": "covenant_compliance_flag",
+      "importance": 0.001
+    },
+    {
+      "feature": "customer_concentration_pct",
+      "importance": 0.0009
+    },
+    {
+      "feature": "civil_suit_years_since_active",
+      "importance": 0.0
+    },
+    {
+      "feature": "other_legal_dispute_years_since_active",
+      "importance": 0.0
+    },
+    {
+      "feature": "net_worth_to_assets_ratio",
+      "importance": 0.0
+    },
+    {
+      "feature": "leverage_ratio",
+      "importance": -0.0006
+    },
+    {
+      "feature": "interest_coverage_ratio",
+      "importance": -0.0043
+    },
+    {
+      "feature": "cash_flow_match_ratio",
+      "importance": -0.0077
+    },
+    {
+      "feature": "estimated_value_inr",
+      "importance": -0.0092
+    },
+    {
+      "feature": "supplier_concentration_pct",
+      "importance": -0.0113
+    },
+    {
+      "feature": "bureau_score",
+      "importance": -0.0204
+    },
+    {
+      "feature": "dscr",
+      "importance": -0.0209
+    }
+  ]
+}

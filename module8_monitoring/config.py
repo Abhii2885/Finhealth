@@ -12,7 +12,7 @@ import os
 
 DEFAULT_SCORING_DIR = os.path.join(os.path.dirname(__file__), "..", "module5_scoring", "scoring_output")
 DEFAULT_SEGMENTATION_DIR = os.path.join(os.path.dirname(__file__), "..", "module4_segmentation", "segmentation_output")
-DEFAULT_DATA_LAKE_DIR = os.path.join(os.path.dirname(__file__), "..", "msme_data_gen", "data_lake")
+DEFAULT_DATA_LAKE_DIR = os.path.join(os.path.dirname(__file__), "..", "module1_data_ingestion", "data_lake")
 DEFAULT_INTEGRATION_DIR = os.path.join(os.path.dirname(__file__), "..", "module7_integration", "integration_output")
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "monitoring_output")
 

@@ -12,12 +12,20 @@ This is the feature layer underneath it.
 """
 
 import os
+import pandas as pd
 
-DEFAULT_DATA_LAKE_DIR = os.path.join(os.path.dirname(__file__), "..", "msme_data_gen", "data_lake")
+DEFAULT_DATA_LAKE_DIR = os.path.join(os.path.dirname(__file__), "..", "module1_data_ingestion", "data_lake")
 DEFAULT_QUALITY_DIR = os.path.join(os.path.dirname(__file__), "..", "module2_data_quality", "quality_output")
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "features_output")
 
-GST_EPFO_MONTHS = 24
+# Matches Module 1's OBS_END_DATE - duplicated (not imported cross-module,
+# same convention as every other module boundary in this project) so
+# character_features.py can compute "years since a dispute was last
+# active" relative to the data lake's own snapshot date, not real
+# wall-clock time.
+SNAPSHOT_DATE = pd.Timestamp("2026-06-30")
+
+GST_EPFO_MONTHS = 36           # 3yr window (v3) - matches Module 1, needed for revenue_cagr_3yr
 BANK_DAYS = 365
 
 # Window used for "recent" trend features (last N of the GST/EPFO periods,
@@ -25,17 +33,21 @@ BANK_DAYS = 365
 TREND_WINDOW_MONTHS = 3
 TREND_WINDOW_DAYS = 90
 
-# Dimensions this prototype CANNOT compute at all, regardless of borrower -
-# carried forward from Module 2's dimension_availability (concentration_risk)
-# plus one new one Module 3 discovers: collateral/coverage has no source in
-# Module 1 either. Both are systemic gaps, not per-borrower data problems.
-NOT_COMPUTABLE_DIMENSIONS = ["concentration_risk", "collateral_coverage"]
+# v3: this restructure adds real Module 1 sources for every gap the old
+# 6-dimension system flagged as absent (bureau, utility timeliness,
+# concentration, collateral) - both lists below are now empty. Kept (not
+# deleted) so run_module3.py's excluded-dimensions manifest still runs and
+# explicitly shows "0 rows" rather than the concept disappearing silently.
+NOT_COMPUTABLE_DIMENSIONS = []
+UNAVAILABLE_SUBFEATURES = {}
 
-# Sub-features that are individually unavailable even within a dimension
-# that's otherwise partially computable (bureau, utility, credit-limit data
-# have no Module 1 generator). Documented so nobody mistakes "we computed
-# SOME repayment features" for "we computed all of them."
-UNAVAILABLE_SUBFEATURES = {
-    "repayment_credit_behavior": ["bureau_dpd_history", "credit_limit_utilization_pct"],
-    "compliance_discipline": ["utility_payment_timeliness"],
-}
+# --- 5C submetric thresholds (v3) ---
+# CAGR requires 3 full annual buckets - a bucket needs at least this many
+# non-null months to count as "full" (avoids extrapolating a partial year).
+CAGR_MIN_MONTHS_PER_YEAR = 8
+
+# Concentration % is meaningless on a handful of transactions - below this
+# count, customer/supplier_concentration_pct is NaN rather than a noisy
+# number driven by small-sample luck (same risk family as the already-fixed
+# balance_trend_pct window-length bug).
+MIN_CONCENTRATION_TXN_COUNT = 20

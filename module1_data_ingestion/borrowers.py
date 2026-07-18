@@ -29,7 +29,11 @@ consistency check something real to detect.
 import uuid
 import pandas as pd
 import numpy as np
-from config import rng, N_BORROWERS, TIER_MIX, SECTORS, SECTOR_MIX, ARCHETYPES, ARCHETYPE_MIX
+from config import (
+    rng, N_BORROWERS, TIER_MIX, SECTORS, SECTOR_MIX, ARCHETYPES, ARCHETYPE_MIX,
+    NON_GST_SHARE_TIER_A, BALANCE_SHEET_AVAILABLE_PROB_BY_TIER,
+    BUREAU_RECORD_PROB_BY_TIER, EXISTING_LOAN_PROB_BY_TIER, COLLATERAL_PROB_BY_TIER,
+)
 
 # Probability a borrower is a GST "under-reporter" (fraud-like minority),
 # by archetype. Distressed businesses skew higher - not because distress
@@ -91,6 +95,21 @@ def generate_borrowers():
         1.0,
     ).round(3)
 
+    # --- 5C-framework attributes (v3) - always-known borrower flags, same
+    # tier-conditioned boolean-mask pattern as has_epfo above. Not hidden
+    # ground truth: these gate which real (if synthetic) data sources exist
+    # for a borrower, the same way has_epfo already gates EPFO.
+    non_gst_prob = np.where(tiers == "A", NON_GST_SHARE_TIER_A, 0.0)
+    is_gst_registered = rng.random(N_BORROWERS) >= non_gst_prob
+
+    def _tier_prob(prob_by_tier):
+        return np.where(tiers == "A", prob_by_tier["A"], prob_by_tier["C"])
+
+    balance_sheet_available = rng.random(N_BORROWERS) < _tier_prob(BALANCE_SHEET_AVAILABLE_PROB_BY_TIER)
+    has_bureau_record = rng.random(N_BORROWERS) < _tier_prob(BUREAU_RECORD_PROB_BY_TIER)
+    has_existing_loan = rng.random(N_BORROWERS) < _tier_prob(EXISTING_LOAN_PROB_BY_TIER)
+    has_collateral = rng.random(N_BORROWERS) < _tier_prob(COLLATERAL_PROB_BY_TIER)
+
     borrower_ids = [f"MSME-{i+1:05d}" for i in range(N_BORROWERS)]
     consent_ids = [str(uuid.uuid4()) for _ in range(N_BORROWERS)]
 
@@ -100,6 +119,11 @@ def generate_borrowers():
         "sector": sectors,
         "business_age_years": business_age,
         "has_epfo": has_epfo,
+        "is_gst_registered": is_gst_registered,
+        "balance_sheet_available": balance_sheet_available,
+        "has_bureau_record": has_bureau_record,
+        "has_existing_loan": has_existing_loan,
+        "has_collateral": has_collateral,
         "consent_id": consent_ids,
     })
 

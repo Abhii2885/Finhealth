@@ -1,10 +1,10 @@
 {
-  "true_positives": 16,
+  "true_positives": 15,
   "false_positives": 24,
-  "false_negatives": 39,
+  "false_negatives": 40,
   "true_negatives": 321,
-  "precision": 0.4,
-  "recall": 0.291,
-  "n_flagged": 40,
+  "precision": 0.385,
+  "recall": 0.273,
+  "n_flagged": 39,
   "n_actual_underreporters": 55
 }

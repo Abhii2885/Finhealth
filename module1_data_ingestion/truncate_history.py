@@ -31,12 +31,20 @@ def truncate_gst(gst_df, internal_borrowers):
             return group
         return group.sort_values("period").tail(n)
 
-    return gst_df.groupby("borrower_id", group_keys=False).apply(_keep).reset_index(drop=True)
+    # [df.columns] keeps borrower_id in the group passed to _keep - pandas
+    # >=2.2 excludes the grouping column from .apply() by default otherwise
+    # (default in pandas 3.0), which would silently drop borrower_id here.
+    return gst_df.groupby("borrower_id", group_keys=False)[gst_df.columns].apply(_keep).reset_index(drop=True)
 
 
 def truncate_epfo(epfo_df, internal_borrowers):
     # same logic, only affects Tier C borrowers already (EPFO only exists for them)
     return truncate_gst(epfo_df, internal_borrowers)
+
+
+def truncate_self_declared_turnover(sdt_df, internal_borrowers):
+    # same borrower_id/period shape as GST returns - identical truncation logic
+    return truncate_gst(sdt_df, internal_borrowers)
 
 
 def truncate_bank(bank_df, internal_borrowers):
@@ -53,6 +61,6 @@ def truncate_bank(bank_df, internal_borrowers):
 
     bank_df = bank_df.copy()
     bank_df["txn_date"] = pd.to_datetime(bank_df["txn_date"])
-    result = bank_df.groupby("borrower_id", group_keys=False).apply(_keep).reset_index(drop=True)
+    result = bank_df.groupby("borrower_id", group_keys=False)[bank_df.columns].apply(_keep).reset_index(drop=True)
     result["txn_date"] = result["txn_date"].dt.date
     return result

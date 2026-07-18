@@ -1,4 +1,8 @@
 check,pass,detail
-scorable borrowers' effective weights sum to ~1.0 (tolerance 1e-3 for rounding),True,"400 scorable borrowers checked, max deviation 9.999999999998899e-05"
+scorable borrowers' effective (5C) weights sum to ~1.0 (tolerance 1e-3 for rounding),True,"400 scorable borrowers checked, max deviation 1.1102230246251565e-16"
 non-scorable borrowers have zero effective weight everywhere,True,0 non-scorable borrowers checked
-concentration_risk weight always 0 (not_computable_in_prototype for everyone),True,max observed weight: 0.0
+"capacity: submetric weights sum to ~1.0 when in play, 0 when excluded",True,"400 in-play, 0 excluded borrowers checked"
+"character: submetric weights sum to ~1.0 when in play, 0 when excluded",True,"400 in-play, 0 excluded borrowers checked"
+"capital: submetric weights sum to ~1.0 when in play, 0 when excluded",True,"205 in-play, 195 excluded borrowers checked"
+"compliance: submetric weights sum to ~1.0 when in play, 0 when excluded",True,"400 in-play, 0 excluded borrowers checked"
+"collateral: submetric weights sum to ~1.0 when in play, 0 when excluded",True,"151 in-play, 249 excluded borrowers checked"

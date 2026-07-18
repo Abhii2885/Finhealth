@@ -17,21 +17,39 @@ import pandas as pd
 
 # True -> higher value = healthier (expect healthy > stagnant > distressed)
 # False -> higher value = riskier (expect healthy < stagnant < distressed)
+#
+# Deliberately excluded (not archetype-driven by construction, so no
+# ordering is expected - same precedent as Module 5 already excluding
+# avg_monthly_turnover_inr as a "size measure, not a health signal"):
+# cash_flow_match_ratio (band, not monotonic), customer/supplier_
+# concentration_pct (structural, independent of archetype in Module 1),
+# owner_time_in_business_years (correlated with business_age, not
+# archetype), collateral_type/construction_status/estimated_value_inr
+# (categorical / turnover-anchored, not archetype-driven).
 FEATURE_DIRECTION = {
-    "balance_trend_pct": True,
-    "monthly_inflow_volatility": False,
-    "monthly_outflow_volatility": False,
-    "txn_frequency_stability": False,
+    "current_ratio": True,
+    "leverage_ratio": False,
+    "dscr": True,
+    "interest_coverage_ratio": True,
+    "revenue_cagr_3yr": True,
+    "projected_revenue_growth_rate": True,
+    "bureau_score": True,
+    # True (not False): this is years-SINCE-active, not a severity flag -
+    # higher means "longer since any trouble" (or never had one at all, via
+    # the NEVER_HAD_DISPUTE_SENTINEL_YEARS sentinel), which is HEALTHIER.
+    "civil_suit_years_since_active": True,
+    "other_legal_dispute_years_since_active": True,
     "cheque_bounce_rate": False,
     "cheque_bounce_count_annualized": False,
-    "turnover_growth_rate": True,
-    "turnover_volatility": False,
-    "headcount_growth_rate": True,
-    "headcount_volatility": False,
-    "wage_bill_growth_rate": True,
+    "net_worth_to_assets_ratio": True,
     "gst_ontime_filing_ratio": True,
     "gst_missed_filing_rate": False,
     "gst_avg_filing_delay_days": False,
+    "epfo_ontime_remittance_ratio": True,
+    "utility_payment_timeliness": True,
+    "rent_payment_timeliness": True,
+    "salary_payment_timeliness": True,
+    "covenant_compliance_flag": True,
 }
 
 ARCHETYPE_ORDER = ["healthy", "stagnant", "distressed"]

@@ -19,6 +19,8 @@ INJECTED_DEFECTS = [
     "orphan_borrower_id_bank",
     "future_txn_date",
     "non_positive_amount",
+    "non_positive_current_liabilities",
+    "outstanding_exceeds_original",
 ]
 
 
@@ -26,6 +28,8 @@ def inject_defects(lake):
     lake = {k: v.copy() for k, v in lake.items()}
     gst = lake["gst"]
     bank = lake["bank"]
+    balance_sheet = lake["balance_sheet"]
+    loan_facilities = lake["loan_facilities"]
 
     # 1. Duplicate GST period: clone one borrower's most recent return
     row = gst.iloc[[0]].copy()
@@ -49,8 +53,22 @@ def inject_defects(lake):
     idx3 = bank.index[20]
     bank.loc[idx3, "amount_inr"] = -500.0
 
+    # 6. Non-positive current liabilities on a balance sheet row (v3)
+    if len(balance_sheet):
+        idx4 = balance_sheet.index[0]
+        balance_sheet.loc[idx4, "current_liabilities_inr"] = 0.0
+
+    # 7. Outstanding principal exceeding original principal (v3)
+    if len(loan_facilities):
+        idx5 = loan_facilities.index[0]
+        loan_facilities.loc[idx5, "principal_outstanding_inr"] = (
+            loan_facilities.loc[idx5, "original_principal_inr"] * 1.5
+        )
+
     lake["gst"] = gst
     lake["bank"] = bank
+    lake["balance_sheet"] = balance_sheet
+    lake["loan_facilities"] = loan_facilities
     return lake
 
 
@@ -60,7 +78,8 @@ def run_selftest(lake):
 
     found_checks = set(issues["check"])
     expected_checks = {"duplicate_period", "negative_turnover", "orphan_borrower_id",
-                        "future_txn_date", "non_positive_amount"}
+                        "future_txn_date", "non_positive_amount",
+                        "non_positive_current_liabilities", "outstanding_exceeds_original"}
 
     results = []
     for chk in sorted(expected_checks):

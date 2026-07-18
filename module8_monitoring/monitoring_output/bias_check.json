@@ -2,79 +2,60 @@
   "raw_tier_comparison": [
     {
       "tier": "A",
-      "mean": 49.03,
+      "mean": 62.49,
       "count": 244
     },
     {
       "tier": "C",
-      "mean": 50.45,
+      "mean": 64.58,
       "count": 156
     }
   ],
-  "counterfactual_archetype_comparison": [
-    {
-      "true_archetype": "distressed",
-      "tier_a_actual_4dim": 16.92,
-      "tier_c_counterfactual_4dim": 19.21,
-      "tier_c_actual_5dim": 19.59,
-      "tier_a_vs_tier_c_counterfactual_gap": -2.29
-    },
-    {
-      "true_archetype": "healthy",
-      "tier_a_actual_4dim": 67.27,
-      "tier_c_counterfactual_4dim": 67.27,
-      "tier_c_actual_5dim": 66.36,
-      "tier_a_vs_tier_c_counterfactual_gap": 0.0
-    },
-    {
-      "true_archetype": "stagnant",
-      "tier_a_actual_4dim": 44.11,
-      "tier_c_counterfactual_4dim": 45.02,
-      "tier_c_actual_5dim": 46.1,
-      "tier_a_vs_tier_c_counterfactual_gap": -0.91
-    }
-  ],
+  "counterfactual_status": {
+    "status": "parked",
+    "reason": "No 5C submetric is deterministically tied to tier the way EPFO/operational_stability used to be for Tier A - see bias_check.py's module docstring and this function's docstring for the full explanation."
+  },
   "short_history_fairness_check": [
     {
       "index": 0,
       "true_archetype": "distressed",
       "has_short_history": false,
-      "mean": 16.92,
+      "mean": 42.91,
       "count": 43
     },
     {
       "index": 1,
       "true_archetype": "distressed",
       "has_short_history": true,
-      "mean": 24.12,
+      "mean": 42.31,
       "count": 9
     },
     {
       "index": 2,
       "true_archetype": "healthy",
       "has_short_history": false,
-      "mean": 67.27,
+      "mean": 73.72,
       "count": 100
     },
     {
       "index": 3,
       "true_archetype": "healthy",
       "has_short_history": true,
-      "mean": 58.09,
+      "mean": 72.31,
       "count": 19
     },
     {
       "index": 4,
       "true_archetype": "stagnant",
       "has_short_history": false,
-      "mean": 44.11,
+      "mean": 59.22,
       "count": 62
     },
     {
       "index": 5,
       "true_archetype": "stagnant",
       "has_short_history": true,
-      "mean": 41.3,
+      "mean": 54.88,
       "count": 11
     }
   ]

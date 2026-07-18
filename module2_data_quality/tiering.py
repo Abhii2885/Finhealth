@@ -1,48 +1,57 @@
 """
-Dimension availability matrix + data-driven quality tier.
+Submetric availability matrix + data-driven quality tier.
 
 Two distinct outputs:
-1. Per borrower, per Module-3 scoring dimension: can it be computed, and
-   if not, why (insufficient_data vs not_applicable vs not_computable_in_
-   prototype). This is what lets Module 5 re-normalize composite score
-   weights over only the available dimensions instead of silently
-   defaulting missing ones to zero.
+1. Per borrower, per (dimension, submetric) pair from the 5C framework:
+   can it be computed, and if not, why (insufficient_data vs
+   not_applicable). This is what lets Module 4 re-normalize weights over
+   only the available submetrics within each C, one level deeper than the
+   old whole-dimension version of this file.
 2. A quality_tier re-derived purely from what Module 2 actually observed
-   in the data (Full / Partial / Thin), compared against Module 1's
-   assumed tier (A/C) so disagreements get surfaced - e.g. a Tier C
-   borrower whose EPFO contributions are barely filed shouldn't quietly
-   inherit "full financials" treatment downstream.
+   in the GST/bank/EPFO time series (Full / Partial / Thin) - unchanged
+   from v1/v2. This measures time-series depth, a different concept from
+   "does a balance sheet exist at all" (the new submetric statuses below),
+   so it's deliberately NOT expanded to cover the new 5C sources.
 """
 
 import pandas as pd
-from config import DIMENSION_SOURCE_MAP, QUALITY_TIER_FULL_MIN, QUALITY_TIER_PARTIAL_MIN
+from config import SUBMETRIC_SOURCE_MAP, QUALITY_TIER_FULL_MIN, QUALITY_TIER_PARTIAL_MIN
+
+SOURCE_STATUS_COL = {
+    "gst": "gst_status",
+    "bank": "bank_status",
+    "epfo": "epfo_status",
+    "balance_sheet": "balance_sheet_status",
+    "bureau_data": "bureau_status",
+    "legal_disputes": "legal_disputes_status",
+    "owners": "owners_status",
+    "loan_facilities": "loan_facilities_status",
+    "collateral": "collateral_status",
+    "turnover": "turnover_status",
+}
 
 
 def _source_status(row, source):
-    if source == "gst":
-        return row["gst_status"]
-    if source == "bank":
-        return row["bank_status"]
-    if source == "epfo":
-        return row["epfo_status"]
-    raise ValueError(source)
+    return row[SOURCE_STATUS_COL[source]]
 
 
-def build_dimension_availability(completeness_df):
+def build_submetric_availability(completeness_df):
     rows = []
     for _, r in completeness_df.iterrows():
         row = {"borrower_id": r["borrower_id"]}
-        for dim, sources in DIMENSION_SOURCE_MAP.items():
-            if not sources:
-                row[dim] = "not_computable_in_prototype"
+        for (dim, submetric), spec in SUBMETRIC_SOURCE_MAP.items():
+            col = f"{dim}__{submetric}_status"
+            gating_flag = spec["gating_flag"]
+            if gating_flag is not None and not bool(r[gating_flag]):
+                row[col] = "not_applicable"
                 continue
-            statuses = [_source_status(r, s) for s in sources]
+            statuses = [_source_status(r, s) for s in spec["sources"]]
             if "not_applicable" in statuses:
-                row[dim] = "not_applicable"
+                row[col] = "not_applicable"
             elif "insufficient_data" in statuses:
-                row[dim] = "insufficient_data"
+                row[col] = "insufficient_data"
             else:
-                row[dim] = "available"
+                row[col] = "available"
         rows.append(row)
     return pd.DataFrame(rows)
 
@@ -61,7 +70,13 @@ def _quality_tier(row):
 
 
 def build_quality_tier(completeness_df):
+    # Non-GST borrowers have no gst_filing_coverage - substitute
+    # self_declared_coverage for them so this quality-tier concept (time-
+    # series depth) still works, instead of erroring on NaN.
     out = completeness_df.copy()
+    out["gst_filing_coverage"] = out["gst_filing_coverage"].fillna(out.get("self_declared_coverage"))
+    out["gst_filing_coverage"] = out["gst_filing_coverage"].fillna(0.0)
+
     out["quality_tier"] = out.apply(_quality_tier, axis=1)
 
     # The ONE genuinely meaningful check this generator can produce: Module 1

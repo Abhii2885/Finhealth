@@ -13,6 +13,10 @@ Takes each source generator's raw output and:
      given borrower (a Tier A borrower's absent EPFO record still needs
      an audit trail entry saying "not applicable / not consented", not
      just silence).
+
+v3: run_ingestion takes a {source_name: df} dict instead of positional
+args - with 11 sources now (up from 3), positional args stopped being
+readable.
 """
 
 import os
@@ -21,6 +25,25 @@ import pandas as pd
 from datetime import datetime, timezone
 
 INGESTED_AT = datetime.now(timezone.utc).isoformat()
+
+# Sources large enough to gzip.
+COMPRESS_SOURCES = {"bank_upi_transactions"}
+
+# source_name -> applies_fn(master_row) -> bool. Drives both which
+# borrowers get a "granted" vs "not_applicable" consent-audit-log row.
+SOURCES_PRESENT = {
+    "gst_returns": lambda b: bool(b["is_gst_registered"]),
+    "self_declared_turnover": lambda b: not bool(b["is_gst_registered"]),
+    "bank_upi_transactions": lambda b: True,
+    "epfo_contributions": lambda b: bool(b["has_epfo"]),
+    "balance_sheet": lambda b: bool(b["balance_sheet_available"]),
+    "owners": lambda b: True,
+    "bureau_data": lambda b: bool(b["has_bureau_record"]),
+    "legal_disputes": lambda b: True,
+    "collateral": lambda b: bool(b["has_collateral"]),
+    "loan_facilities": lambda b: bool(b["has_existing_loan"]),
+    "loan_application": lambda b: True,
+}
 
 
 def _tag_source(df, source_name, consent_lookup):
@@ -64,33 +87,24 @@ def build_consent_audit_log(master_df, sources_present):
     return pd.DataFrame(rows)
 
 
-def run_ingestion(output_dir, master, gst_df, bank_df, epfo_df):
+def run_ingestion(output_dir, master, source_dfs):
+    """
+    source_dfs: {source_name: df} for every entry in SOURCES_PRESENT.
+    """
     consent_lookup = dict(zip(master["borrower_id"], master["consent_id"]))
 
     os.makedirs(output_dir, exist_ok=True)
 
-    gst_tagged = _tag_source(gst_df, "gst_returns", consent_lookup)
-    bank_tagged = _tag_source(bank_df, "bank_upi_transactions", consent_lookup)
-    epfo_tagged = _tag_source(epfo_df, "epfo_contributions", consent_lookup)
-
-    paths = {
-        "gst_returns": _write(gst_tagged, output_dir, "gst_returns"),
-        # bank/UPI is transaction-level and large (~800k rows) - gzip it,
-        # pandas reads .csv.gz transparently via pd.read_csv().
-        "bank_upi_transactions": _write(bank_tagged, output_dir, "bank_upi_transactions", compress=True),
-        "epfo_contributions": _write(epfo_tagged, output_dir, "epfo_contributions"),
-    }
+    paths = {}
+    for source_name, df in source_dfs.items():
+        tagged = _tag_source(df, source_name, consent_lookup)
+        paths[source_name] = _write(tagged, output_dir, source_name, compress=source_name in COMPRESS_SOURCES)
 
     master_path = os.path.join(output_dir, "borrower_master.csv")
     master.drop(columns=["true_archetype"], errors="ignore").to_csv(master_path, index=False)
     paths["borrower_master"] = master_path
 
-    sources_present = {
-        "gst_returns": lambda b: True,                 # all borrowers file GST (informal or formal)
-        "bank_upi_transactions": lambda b: True,       # all borrowers have bank/UPI activity
-        "epfo_contributions": lambda b: bool(b["has_epfo"]),
-    }
-    audit_log = build_consent_audit_log(master, sources_present)
+    audit_log = build_consent_audit_log(master, SOURCES_PRESENT)
     audit_path = os.path.join(output_dir, "consent_audit_log.csv")
     audit_log.to_csv(audit_path, index=False)
     paths["consent_audit_log"] = audit_path

@@ -12,61 +12,211 @@
       "status": 200,
       "response": {
         "borrower_id": "MSME-00001",
-        "consent_id": "unknown-consent-id",
-        "as_of_date": "2026-07-10",
-        "composite_score": 35.86,
-        "grade": "D - Weak",
-        "segment_label": "Full \u2014 5 dimensions available",
+        "consent_id": "43254e46-94ee-42e5-909b-e7dfcc74e01d",
+        "as_of_date": "2026-07-17",
+        "composite_score": 60.88,
+        "grade": "C - Fair",
+        "segment_label": "Reduced \u2014 4 of 5 Cs available (capacity, character, capital, compliance)",
         "scorable": true,
         "dimensions": [
           {
-            "key": "liquidity_cash_flow",
-            "label": "Liquidity & Cash Flow",
-            "score": 64.34375,
-            "weight": 0.2222,
+            "key": "capacity",
+            "label": "Capacity",
+            "score": 58.68703113006397,
+            "weight": 0.3333,
             "status": "available",
-            "top_positive_driver": "Outflow volatility",
-            "top_negative_driver": "Bank balance trend"
+            "top_positive_driver": "Debt service coverage ratio",
+            "top_negative_driver": "Revenue CAGR (3yr)",
+            "submetrics": [
+              {
+                "key": "dscr",
+                "score": 100.0,
+                "weight": 0.22,
+                "status": "available"
+              },
+              {
+                "key": "cash_flow_match_ratio",
+                "score": 33.33333333333334,
+                "weight": 0.18,
+                "status": "available"
+              },
+              {
+                "key": "current_ratio",
+                "score": 64.34328358208955,
+                "weight": 0.14,
+                "status": "available"
+              },
+              {
+                "key": "interest_coverage_ratio",
+                "score": 100.0,
+                "weight": 0.1,
+                "status": "available"
+              },
+              {
+                "key": "leverage_ratio",
+                "score": 79.64,
+                "weight": 0.1,
+                "status": "available"
+              },
+              {
+                "key": "revenue_cagr_3yr",
+                "score": 0.0,
+                "weight": 0.1,
+                "status": "available"
+              },
+              {
+                "key": "projected_revenue_growth_rate",
+                "score": 8.040000000000001,
+                "weight": 0.06,
+                "status": "available"
+              },
+              {
+                "key": "customer_concentration_pct",
+                "score": 33.61714285714286,
+                "weight": 0.05,
+                "status": "available"
+              },
+              {
+                "key": "supplier_concentration_pct",
+                "score": 31.034285714285716,
+                "weight": 0.05,
+                "status": "available"
+              }
+            ]
           },
           {
-            "key": "repayment_credit_behavior",
-            "label": "Repayment & Credit Behavior",
-            "score": 38.0,
-            "weight": 0.1667,
+            "key": "character",
+            "label": "Character",
+            "score": 69.69750000000002,
+            "weight": 0.2778,
+            "status": "available",
+            "top_positive_driver": "Civil suit status",
+            "top_negative_driver": "Owner's time in business",
+            "submetrics": [
+              {
+                "key": "bureau_score",
+                "score": 52.5,
+                "weight": 0.5,
+                "status": "available"
+              },
+              {
+                "key": "civil_suit_years_since_active",
+                "score": 100.0,
+                "weight": 0.18,
+                "status": "available"
+              },
+              {
+                "key": "other_legal_dispute_years_since_active",
+                "score": 100.0,
+                "weight": 0.13,
+                "status": "available"
+              },
+              {
+                "key": "cheque_bounce_rate",
+                "score": 78.25,
+                "weight": 0.11,
+                "status": "available"
+              },
+              {
+                "key": "owner_time_in_business_years",
+                "score": 48.0,
+                "weight": 0.08,
+                "status": "available"
+              }
+            ]
+          },
+          {
+            "key": "capital",
+            "label": "Capital",
+            "score": 39.564,
+            "weight": 0.2222,
             "status": "available",
             "top_positive_driver": null,
-            "top_negative_driver": "Cheque bounce rate"
+            "top_negative_driver": "Net worth / total assets",
+            "submetrics": [
+              {
+                "key": "net_worth_to_assets_ratio",
+                "score": 39.564,
+                "weight": 1.0,
+                "status": "available"
+              }
+            ]
           },
           {
-            "key": "revenue_growth_signal",
-            "label": "Revenue & Growth Signal",
-            "score": 0.0,
-            "weight": 0.2222,
-            "status": "available",
-            "top_positive_driver": "Turnover growth",
-            "top_negative_driver": "Turnover volatility"
-          },
-          {
-            "key": "operational_stability",
-            "label": "Operational Stability",
-            "score": 22.54273504273505,
+            "key": "compliance",
+            "label": "Compliance",
+            "score": 78.995,
             "weight": 0.1667,
             "status": "available",
-            "top_positive_driver": "Headcount volatility",
-            "top_negative_driver": "Headcount growth"
+            "top_positive_driver": "Bank covenant compliance",
+            "top_negative_driver": "GST on-time filing ratio",
+            "submetrics": [
+              {
+                "key": "covenant_compliance_flag",
+                "score": 100.0,
+                "weight": 0.3,
+                "status": "available"
+              },
+              {
+                "key": "gst_ontime_filing_ratio",
+                "score": 50.0,
+                "weight": 0.25,
+                "status": "available"
+              },
+              {
+                "key": "utility_payment_timeliness",
+                "score": 100.0,
+                "weight": 0.18,
+                "status": "available"
+              },
+              {
+                "key": "epfo_ontime_remittance_ratio",
+                "score": 50.0,
+                "weight": 0.12,
+                "status": "available"
+              },
+              {
+                "key": "rent_payment_timeliness",
+                "score": 83.3,
+                "weight": 0.1,
+                "status": "available"
+              },
+              {
+                "key": "salary_payment_timeliness",
+                "score": 83.3,
+                "weight": 0.05,
+                "status": "available"
+              }
+            ]
           },
           {
-            "key": "compliance_discipline",
-            "label": "Compliance Discipline",
-            "score": 51.625,
-            "weight": 0.2222,
-            "status": "available",
-            "top_positive_driver": "GST missed-filing rate",
-            "top_negative_driver": "GST average filing delay"
+            "key": "collateral",
+            "label": "Collateral",
+            "score": null,
+            "weight": 0.0,
+            "status": "not_applicable",
+            "top_positive_driver": null,
+            "top_negative_driver": null,
+            "submetrics": [
+              {
+                "key": "collateral_quality_score",
+                "score": null,
+                "weight": 0.0,
+                "status": "not_applicable"
+              }
+            ]
           }
         ],
+        "context": {
+          "is_gst_registered": true,
+          "balance_sheet_available": true,
+          "has_bureau_record": true,
+          "has_existing_loan": true,
+          "has_collateral": false,
+          "projected_revenue_next_year_inr": 13893096.2
+        },
         "data_provenance": {
-          "source": "synthetic MSME Financial Health Score pipeline (Modules 1-6)",
+          "source": "synthetic MSME Financial Health Score pipeline (Modules 1-6), 5C framework",
           "schema_label": "illustrative-uli-ocen-inspired, not certified",
           "disclaimer": "Score is computed from SYNTHETIC data for a prototype. This API contract is illustrative, inspired by ULI/OCEN presentment patterns, and has not been validated against the certified official specification."
         }
@@ -82,61 +232,211 @@
       "status": 200,
       "response": {
         "borrower_id": "MSME-00002",
-        "consent_id": "unknown-consent-id",
-        "as_of_date": "2026-07-10",
-        "composite_score": 70.53,
+        "consent_id": "00717b2d-14e7-452f-b5ad-6eb254302d9a",
+        "as_of_date": "2026-07-17",
+        "composite_score": 76.77,
         "grade": "B - Good",
-        "segment_label": "Reduced \u2014 4 dimensions available (structurally unavailable, not a data gap)",
+        "segment_label": "Full \u2014 5 of 5 Cs available",
         "scorable": true,
         "dimensions": [
           {
-            "key": "liquidity_cash_flow",
-            "label": "Liquidity & Cash Flow",
-            "score": 77.21875,
-            "weight": 0.2667,
+            "key": "capacity",
+            "label": "Capacity",
+            "score": 72.49285714285715,
+            "weight": 0.3,
             "status": "available",
-            "top_positive_driver": "Bank balance trend",
-            "top_negative_driver": "Transaction regularity"
+            "top_positive_driver": "Debt service coverage ratio",
+            "top_negative_driver": "Supplier concentration",
+            "submetrics": [
+              {
+                "key": "dscr",
+                "score": 100.0,
+                "weight": 0.22,
+                "status": "available"
+              },
+              {
+                "key": "cash_flow_match_ratio",
+                "score": 33.33333333333334,
+                "weight": 0.18,
+                "status": "available"
+              },
+              {
+                "key": "current_ratio",
+                "score": 100.0,
+                "weight": 0.14,
+                "status": "available"
+              },
+              {
+                "key": "interest_coverage_ratio",
+                "score": 100.0,
+                "weight": 0.1,
+                "status": "available"
+              },
+              {
+                "key": "leverage_ratio",
+                "score": 100.0,
+                "weight": 0.1,
+                "status": "available"
+              },
+              {
+                "key": "revenue_cagr_3yr",
+                "score": 30.0,
+                "weight": 0.1,
+                "status": "available"
+              },
+              {
+                "key": "projected_revenue_growth_rate",
+                "score": 72.3,
+                "weight": 0.06,
+                "status": "available"
+              },
+              {
+                "key": "customer_concentration_pct",
+                "score": 33.308571428571426,
+                "weight": 0.05,
+                "status": "available"
+              },
+              {
+                "key": "supplier_concentration_pct",
+                "score": 29.78857142857143,
+                "weight": 0.05,
+                "status": "available"
+              }
+            ]
           },
           {
-            "key": "repayment_credit_behavior",
-            "label": "Repayment & Credit Behavior",
-            "score": 86.5,
+            "key": "character",
+            "label": "Character",
+            "score": 89.19350000000001,
+            "weight": 0.25,
+            "status": "available",
+            "top_positive_driver": "Civil suit status",
+            "top_negative_driver": "Bureau score",
+            "submetrics": [
+              {
+                "key": "bureau_score",
+                "score": 80.4,
+                "weight": 0.5,
+                "status": "available"
+              },
+              {
+                "key": "civil_suit_years_since_active",
+                "score": 100.0,
+                "weight": 0.18,
+                "status": "available"
+              },
+              {
+                "key": "other_legal_dispute_years_since_active",
+                "score": 100.0,
+                "weight": 0.13,
+                "status": "available"
+              },
+              {
+                "key": "cheque_bounce_rate",
+                "score": 90.85,
+                "weight": 0.11,
+                "status": "available"
+              },
+              {
+                "key": "owner_time_in_business_years",
+                "score": 100.0,
+                "weight": 0.08,
+                "status": "available"
+              }
+            ]
+          },
+          {
+            "key": "capital",
+            "label": "Capital",
+            "score": 56.508,
             "weight": 0.2,
             "status": "available",
-            "top_positive_driver": "Cheque bounce rate",
-            "top_negative_driver": null
+            "top_positive_driver": "Net worth / total assets",
+            "top_negative_driver": null,
+            "submetrics": [
+              {
+                "key": "net_worth_to_assets_ratio",
+                "score": 56.508,
+                "weight": 1.0,
+                "status": "available"
+              }
+            ]
           },
           {
-            "key": "revenue_growth_signal",
-            "label": "Revenue & Growth Signal",
-            "score": 60.1875,
-            "weight": 0.2667,
+            "key": "compliance",
+            "label": "Compliance",
+            "score": 92.8015801580158,
+            "weight": 0.15,
             "status": "available",
-            "top_positive_driver": "Turnover growth",
-            "top_negative_driver": "Turnover volatility"
+            "top_positive_driver": "Utility payment timeliness",
+            "top_negative_driver": "GST on-time filing ratio",
+            "submetrics": [
+              {
+                "key": "covenant_compliance_flag",
+                "score": null,
+                "weight": 0.0,
+                "status": "not_applicable"
+              },
+              {
+                "key": "gst_ontime_filing_ratio",
+                "score": 83.3,
+                "weight": 0.431,
+                "status": "available"
+              },
+              {
+                "key": "utility_payment_timeliness",
+                "score": 100.0,
+                "weight": 0.3103,
+                "status": "available"
+              },
+              {
+                "key": "epfo_ontime_remittance_ratio",
+                "score": null,
+                "weight": 0.0,
+                "status": "not_applicable"
+              },
+              {
+                "key": "rent_payment_timeliness",
+                "score": 100.0,
+                "weight": 0.1724,
+                "status": "available"
+              },
+              {
+                "key": "salary_payment_timeliness",
+                "score": 100.0,
+                "weight": 0.0862,
+                "status": "available"
+              }
+            ]
           },
           {
-            "key": "operational_stability",
-            "label": "Operational Stability",
-            "score": null,
-            "weight": 0.0,
-            "status": "not_applicable",
-            "top_positive_driver": null,
-            "top_negative_driver": null
-          },
-          {
-            "key": "compliance_discipline",
-            "label": "Compliance Discipline",
-            "score": 62.208333333333336,
-            "weight": 0.2667,
+            "key": "collateral",
+            "label": "Collateral",
+            "score": 75.0,
+            "weight": 0.1,
             "status": "available",
-            "top_positive_driver": "GST on-time filing ratio",
-            "top_negative_driver": "GST missed-filing rate"
+            "top_positive_driver": "Collateral quality",
+            "top_negative_driver": null,
+            "submetrics": [
+              {
+                "key": "collateral_quality_score",
+                "score": 75.0,
+                "weight": 1.0,
+                "status": "available"
+              }
+            ]
           }
         ],
+        "context": {
+          "is_gst_registered": true,
+          "balance_sheet_available": true,
+          "has_bureau_record": true,
+          "has_existing_loan": true,
+          "has_collateral": true,
+          "projected_revenue_next_year_inr": 83672928.53
+        },
         "data_provenance": {
-          "source": "synthetic MSME Financial Health Score pipeline (Modules 1-6)",
+          "source": "synthetic MSME Financial Health Score pipeline (Modules 1-6), 5C framework",
           "schema_label": "illustrative-uli-ocen-inspired, not certified",
           "disclaimer": "Score is computed from SYNTHETIC data for a prototype. This API contract is illustrative, inspired by ULI/OCEN presentment patterns, and has not been validated against the certified official specification."
         }
@@ -152,61 +452,211 @@
       "status": 200,
       "response": {
         "borrower_id": "MSME-00003",
-        "consent_id": "unknown-consent-id",
-        "as_of_date": "2026-07-10",
-        "composite_score": 19.63,
-        "grade": "E - Poor",
-        "segment_label": "Full \u2014 5 dimensions available",
+        "consent_id": "babd16d7-72d6-48e8-bcb4-4c4dc22db18d",
+        "as_of_date": "2026-07-17",
+        "composite_score": 42.91,
+        "grade": "D - Weak",
+        "segment_label": "Full \u2014 5 of 5 Cs available",
         "scorable": true,
         "dimensions": [
           {
-            "key": "liquidity_cash_flow",
-            "label": "Liquidity & Cash Flow",
-            "score": 21.28125,
-            "weight": 0.2222,
+            "key": "capacity",
+            "label": "Capacity",
+            "score": 31.829029999999996,
+            "weight": 0.3,
             "status": "available",
-            "top_positive_driver": "Transaction regularity",
-            "top_negative_driver": "Bank balance trend"
+            "top_positive_driver": "Cash flow vs. declared turnover match",
+            "top_negative_driver": "Revenue CAGR (3yr)",
+            "submetrics": [
+              {
+                "key": "dscr",
+                "score": null,
+                "weight": 0.0,
+                "status": "not_applicable"
+              },
+              {
+                "key": "cash_flow_match_ratio",
+                "score": 71.6,
+                "weight": 0.2647,
+                "status": "available"
+              },
+              {
+                "key": "current_ratio",
+                "score": 19.71,
+                "weight": 0.2059,
+                "status": "available"
+              },
+              {
+                "key": "interest_coverage_ratio",
+                "score": null,
+                "weight": 0.0,
+                "status": "not_applicable"
+              },
+              {
+                "key": "leverage_ratio",
+                "score": 30.51,
+                "weight": 0.1471,
+                "status": "available"
+              },
+              {
+                "key": "revenue_cagr_3yr",
+                "score": 0.0,
+                "weight": 0.1471,
+                "status": "available"
+              },
+              {
+                "key": "projected_revenue_growth_rate",
+                "score": 0.0,
+                "weight": 0.0882,
+                "status": "available"
+              },
+              {
+                "key": "customer_concentration_pct",
+                "score": 31.845714285714283,
+                "weight": 0.0735,
+                "status": "available"
+              },
+              {
+                "key": "supplier_concentration_pct",
+                "score": 27.068571428571428,
+                "weight": 0.0735,
+                "status": "available"
+              }
+            ]
           },
           {
-            "key": "repayment_credit_behavior",
-            "label": "Repayment & Credit Behavior",
-            "score": 19.25,
-            "weight": 0.1667,
+            "key": "character",
+            "label": "Character",
+            "score": 53.751000000000005,
+            "weight": 0.25,
+            "status": "available",
+            "top_positive_driver": "Civil suit status",
+            "top_negative_driver": "Bureau score",
+            "submetrics": [
+              {
+                "key": "bureau_score",
+                "score": 22.3,
+                "weight": 0.5,
+                "status": "available"
+              },
+              {
+                "key": "civil_suit_years_since_active",
+                "score": 100.0,
+                "weight": 0.18,
+                "status": "available"
+              },
+              {
+                "key": "other_legal_dispute_years_since_active",
+                "score": 100.0,
+                "weight": 0.13,
+                "status": "available"
+              },
+              {
+                "key": "cheque_bounce_rate",
+                "score": 48.3,
+                "weight": 0.11,
+                "status": "available"
+              },
+              {
+                "key": "owner_time_in_business_years",
+                "score": 78.6,
+                "weight": 0.08,
+                "status": "available"
+              }
+            ]
+          },
+          {
+            "key": "capital",
+            "label": "Capital",
+            "score": 15.864,
+            "weight": 0.2,
             "status": "available",
             "top_positive_driver": null,
-            "top_negative_driver": "Cheque bounce rate"
+            "top_negative_driver": "Net worth / total assets",
+            "submetrics": [
+              {
+                "key": "net_worth_to_assets_ratio",
+                "score": 15.864,
+                "weight": 1.0,
+                "status": "available"
+              }
+            ]
           },
           {
-            "key": "revenue_growth_signal",
-            "label": "Revenue & Growth Signal",
-            "score": 1.625,
-            "weight": 0.2222,
+            "key": "compliance",
+            "label": "Compliance",
+            "score": 45.00974097409741,
+            "weight": 0.15,
             "status": "available",
-            "top_positive_driver": "Turnover growth",
-            "top_negative_driver": "Turnover volatility"
+            "top_positive_driver": "EPFO on-time remittance ratio",
+            "top_negative_driver": "GST on-time filing ratio",
+            "submetrics": [
+              {
+                "key": "covenant_compliance_flag",
+                "score": null,
+                "weight": 0.0,
+                "status": "not_applicable"
+              },
+              {
+                "key": "gst_ontime_filing_ratio",
+                "score": 16.7,
+                "weight": 0.3571,
+                "status": "available"
+              },
+              {
+                "key": "utility_payment_timeliness",
+                "score": 50.0,
+                "weight": 0.2571,
+                "status": "available"
+              },
+              {
+                "key": "epfo_ontime_remittance_ratio",
+                "score": 83.3,
+                "weight": 0.1714,
+                "status": "available"
+              },
+              {
+                "key": "rent_payment_timeliness",
+                "score": 66.7,
+                "weight": 0.1429,
+                "status": "available"
+              },
+              {
+                "key": "salary_payment_timeliness",
+                "score": 33.300000000000004,
+                "weight": 0.0714,
+                "status": "available"
+              }
+            ]
           },
           {
-            "key": "operational_stability",
-            "label": "Operational Stability",
-            "score": 51.70940170940171,
-            "weight": 0.1667,
+            "key": "collateral",
+            "label": "Collateral",
+            "score": 100.0,
+            "weight": 0.1,
             "status": "available",
-            "top_positive_driver": "Headcount volatility",
-            "top_negative_driver": "Wage bill growth"
-          },
-          {
-            "key": "compliance_discipline",
-            "label": "Compliance Discipline",
-            "score": 12.208333333333334,
-            "weight": 0.2222,
-            "status": "available",
-            "top_positive_driver": "GST average filing delay",
-            "top_negative_driver": "GST missed-filing rate"
+            "top_positive_driver": "Collateral quality",
+            "top_negative_driver": null,
+            "submetrics": [
+              {
+                "key": "collateral_quality_score",
+                "score": 100.0,
+                "weight": 1.0,
+                "status": "available"
+              }
+            ]
           }
         ],
+        "context": {
+          "is_gst_registered": true,
+          "balance_sheet_available": true,
+          "has_bureau_record": true,
+          "has_existing_loan": false,
+          "has_collateral": true,
+          "projected_revenue_next_year_inr": 24887511.75
+        },
         "data_provenance": {
-          "source": "synthetic MSME Financial Health Score pipeline (Modules 1-6)",
+          "source": "synthetic MSME Financial Health Score pipeline (Modules 1-6), 5C framework",
           "schema_label": "illustrative-uli-ocen-inspired, not certified",
           "disclaimer": "Score is computed from SYNTHETIC data for a prototype. This API contract is illustrative, inspired by ULI/OCEN presentment patterns, and has not been validated against the certified official specification."
         }
@@ -236,7 +686,7 @@
       "response": {
         "borrower_id": "MSME-00001",
         "status": "queued",
-        "received_at": "2026-07-10T16:23:11.391792Z",
+        "received_at": "2026-07-17T17:25:42.025499Z",
         "note": "Logged only - this prototype does not actually trigger a recompute. A production version would re-run Modules 1-6 (or an incremental equivalent) for this borrower and invalidate their cached score card."
       }
     },
@@ -257,7 +707,74 @@
             "consent_id": "demo-consent-id-001",
             "event_type": "new_data_available",
             "source": "bank_upi_transactions",
-            "received_at": "2026-07-10T16:23:11.391792Z"
+            "received_at": "2026-07-17T17:25:42.025499Z"
+          }
+        ]
+      }
+    },
+    {
+      "call": "POST /uli/v1/score-card/.../applicant-inputs",
+      "status": 202,
+      "request": {
+        "balance_sheet_available": true,
+        "projected_revenue_next_year_inr": 5000000
+      },
+      "response": {
+        "borrower_id": "MSME-00001",
+        "status": "queued",
+        "received_at": "2026-07-17T17:25:42.026647Z",
+        "note": "Logged only - this prototype does not actually trigger a recompute. This is the real future-user-input surface (balance_sheet_available / projected_revenue_next_year_inr) that Module 1 simulates across the synthetic 400-borrower population for testing; a production version would feed this into Modules 3-5 and invalidate the cached score card."
+      }
+    },
+    {
+      "call": "GET /uli/v1/applicant-inputs/log",
+      "status": 200,
+      "response": {
+        "events": [
+          {
+            "borrower_id": "MSME-00001",
+            "balance_sheet_available": true,
+            "projected_revenue_next_year_inr": 5000000,
+            "received_at": "2026-07-17T17:25:42.026647Z"
+          }
+        ]
+      }
+    },
+    {
+      "call": "POST /uli/v1/score-card/.../override",
+      "status": 202,
+      "request": {
+        "parameter": "capacity.dscr",
+        "original_score": 70.0,
+        "overridden_score": 85.0,
+        "comment": "Verified stronger cash position from bank statement not yet reflected."
+      },
+      "response": {
+        "borrower_id": "MSME-00001",
+        "status": "queued",
+        "received_at": "2026-07-17T17:25:42.027248Z",
+        "note": "Logged only - this prototype does not actually trigger a recompute. Server-side counterpart to the Module 6 dashboard's client-side override capability (localStorage + JSON export) - best-effort only, used if this server happens to be reachable."
+      }
+    },
+    {
+      "call": "POST /uli/v1/score-card/.../override (empty comment, expect 400)",
+      "status": 400,
+      "response": {
+        "error": "missing/invalid required fields: ['comment (must be non-empty)']"
+      }
+    },
+    {
+      "call": "GET /uli/v1/override/log",
+      "status": 200,
+      "response": {
+        "events": [
+          {
+            "borrower_id": "MSME-00001",
+            "parameter": "capacity.dscr",
+            "original_score": 70.0,
+            "overridden_score": 85.0,
+            "comment": "Verified stronger cash position from bank statement not yet reflected.",
+            "received_at": "2026-07-17T17:25:42.027248Z"
           }
         ]
       }
@@ -270,6 +787,8 @@
       "MSME-00003"
     ],
     "all_score_cards_schema_valid": true,
-    "consent_refresh_event_logged": true
+    "consent_refresh_event_logged": true,
+    "applicant_inputs_event_logged": true,
+    "override_event_logged": true
   }
 }

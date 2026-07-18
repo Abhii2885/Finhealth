@@ -14,7 +14,7 @@ import os
 import sys
 
 from config import DEFAULT_QUALITY_DIR, OUTPUT_DIR
-from loader import load_dimension_availability
+from loader import load_submetric_availability
 from segmentation import build_segmentation
 from validate import run_checks
 
@@ -23,12 +23,12 @@ def main():
     quality_dir = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_QUALITY_DIR
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-    print(f"Loading dimension availability from {quality_dir} ...")
-    dim_avail = load_dimension_availability(quality_dir)
-    print(f"  {len(dim_avail)} borrowers")
+    print(f"Loading submetric availability (5C framework) from {quality_dir} ...")
+    submetric_avail = load_submetric_availability(quality_dir)
+    print(f"  {len(submetric_avail)} borrowers")
 
     print("\nBuilding segmentation policy (weights, eligibility, segment labels)...")
-    seg = build_segmentation(dim_avail)
+    seg = build_segmentation(submetric_avail)
     seg_path = os.path.join(OUTPUT_DIR, "segmentation_policy.csv")
     seg.to_csv(seg_path, index=False)
     print(f"  -> {seg_path}")
@@ -43,13 +43,11 @@ def main():
         os.path.join(OUTPUT_DIR, "segment_distribution.csv"), index=False
     )
 
-    print("\nData confidence breakdown (is the insufficient-data discount actually doing anything?):")
-    print(seg["data_confidence"].value_counts().to_string())
-    n_noop = (seg["data_confidence"] == "discount_is_noop_all_dims_uniformly_thin").sum()
-    if n_noop:
-        print(f"  -> {n_noop} borrower(s) have every included dimension uniformly flagged "
-              f"insufficient_data, so INSUFFICIENT_DATA_WEIGHT_MULTIPLIER has zero effect on "
-              f"their relative weights (see segmentation.py's _data_confidence docstring for the math).")
+    print("\nPer-C discount-effect breakdown (is the insufficient-data discount actually doing anything, per C?):")
+    from segmentation import DIMENSIONS
+    for dim in DIMENSIONS:
+        print(f"  {dim}:")
+        print(seg[f"{dim}_subweight_discount_effect"].value_counts().to_string())
 
     print("\nInternal consistency checks...")
     checks = run_checks(seg)

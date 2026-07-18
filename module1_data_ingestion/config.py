@@ -34,9 +34,28 @@ ARCHETYPES = ["healthy", "stagnant", "distressed"]
 ARCHETYPE_MIX = [0.50, 0.30, 0.20]
 
 # Observation windows
-GST_EPFO_MONTHS = 24          # trailing 24 months of return/contribution history
-BANK_DAYS = 365                # trailing 12 months of daily bank/UPI activity
+GST_EPFO_MONTHS = 36           # trailing 36 months (3yr) - needed for Module 3's revenue_cagr_3yr
+BANK_DAYS = 365                # trailing 12 months of daily bank/UPI activity - CAGR only needs
+                                # GST/self-declared turnover, not bank, so this stays at 1yr.
 
 OBS_END_DATE = np.datetime64("2026-06-30")  # "today" for generation purposes
 
 OUTPUT_DIR = "data_lake"
+
+# --- 5C-framework borrower attributes (v3) -----------------------------
+# All five are always-known borrower attributes (like tier/sector/has_epfo),
+# not hidden ground truth - they're the precursor to balance_sheet_available
+# eventually being a real Module 7 user input. Tier-conditioned because
+# formal, larger (Tier C) businesses are more likely in reality to have
+# these records than thin-file Tier A ones - this is a realistic signal
+# for Module 8's bias check to surface, not an artificial confound.
+
+# Fraction of Tier A borrowers below the GST registration turnover
+# threshold - they get self-declared turnover instead of GST returns.
+# Tier C is assumed always GST-registered (formal employer, has EPFO).
+NON_GST_SHARE_TIER_A = 0.10
+
+BALANCE_SHEET_AVAILABLE_PROB_BY_TIER = {"A": 0.35, "C": 0.80}
+BUREAU_RECORD_PROB_BY_TIER = {"A": 0.45, "C": 0.85}
+EXISTING_LOAN_PROB_BY_TIER = {"A": 0.30, "C": 0.55}
+COLLATERAL_PROB_BY_TIER = {"A": 0.25, "C": 0.60}

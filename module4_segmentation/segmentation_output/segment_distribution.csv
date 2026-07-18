@@ -1,4 +1,5 @@
 segment_label,count
-"Reduced — 4 dimensions available (structurally unavailable, not a data gap)",205
-Full — 5 dimensions available,156
-Partial confidence — 4 dimensions (4 discounted for thin data),39
+"Reduced — 3 of 5 Cs available (capacity, character, compliance)",132
+"Reduced — 4 of 5 Cs available (capacity, character, capital, compliance)",117
+Full — 5 of 5 Cs available,88
+"Reduced — 4 of 5 Cs available (capacity, character, compliance, collateral)",63

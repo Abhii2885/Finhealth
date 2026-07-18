@@ -3,4 +3,6 @@ duplicate_period,True
 future_txn_date,True
 negative_turnover,True
 non_positive_amount,True
+non_positive_current_liabilities,True
 orphan_borrower_id,True
+outstanding_exceeds_original,True

@@ -1,13 +1,13 @@
 """
 Top-drivers explainability: for each borrower and dimension, which
-underlying feature (from Module 5's exposed per-feature percentile scores)
-is pulling the dimension score up the most, and which is pulling it down
-the most.
+underlying submetric (from Module 5's exposed per-submetric scores) is
+pulling the dimension score up the most, and which is pulling it down the
+most.
 
-Dimensions with only one scoring feature (repayment_credit_behavior, which
-only has cheque_bounce_rate in this prototype - see Module 3's documented
-gap on bureau/limit-utilization data) have nothing to differentiate a
-"top" driver from - flagged as such rather than fabricating a comparison.
+Capital and Collateral each have exactly one scoring submetric by design
+(net_worth_to_assets_ratio, collateral_quality_score - see config.
+SINGLE_SUBMETRIC_DIMENSIONS) - nothing to differentiate a "top" driver
+from, flagged as such rather than fabricating a comparison.
 """
 
 import pandas as pd

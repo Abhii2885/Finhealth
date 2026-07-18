@@ -1,8 +1,8 @@
 {
   "cohort_a_n": 400,
   "cohort_b_n": 400,
-  "cohort_a_mean": 49.58,
-  "cohort_b_mean": 49.67,
-  "psi": 0.052,
+  "cohort_a_mean": 48.32,
+  "cohort_b_mean": 48.99,
+  "psi": 0.0271,
   "classification": "no significant shift"
 }

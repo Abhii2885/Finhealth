@@ -15,8 +15,10 @@ import os
 import sys
 import json
 
-from config import DEFAULT_DATA_LAKE_DIR, DEFAULT_FEATURES_DIR, DEFAULT_SCORING_DIR, DEFAULT_SEGMENTATION_DIR, OUTPUT_DIR
-from loader import load_scores, load_feature_scores, load_segmentation, load_raw_lake, load_ground_truth
+from config import DEFAULT_DATA_LAKE_DIR, DEFAULT_FEATURES_DIR, DEFAULT_SCORING_DIR, DEFAULT_SEGMENTATION_DIR, \
+    DEFAULT_ML_DIR, OUTPUT_DIR
+from loader import load_scores, load_feature_scores, load_segmentation, load_features, load_raw_lake, \
+    load_ground_truth, load_ml_outputs
 from drivers import build_drivers
 from trend import build_trend
 from validate import validate_trend
@@ -33,11 +35,20 @@ def main():
     print("Loading Module 5 scores + feature scores...")
     scores = load_scores(scoring_dir)
     feature_scores = load_feature_scores(scoring_dir)
+    print("Loading Module 3 raw features (for the scorecard's Actual Value column)...")
+    features = load_features(features_dir)
     print("Loading Module 4 segmentation...")
     segmentation = load_segmentation(segmentation_dir)
-    print("Loading Module 1 raw data lake (for trend checkpoints)...")
+    print("Loading Module 1 raw data lake (for trend checkpoints + as-of periods)...")
     lake = load_raw_lake(data_lake_dir)
     ground_truth = load_ground_truth(data_lake_dir)
+    print("Loading Module 9 ML outputs (optional - dashboard degrades gracefully without them)...")
+    ml_df, ml_holdout_eval = load_ml_outputs(DEFAULT_ML_DIR)
+    if ml_df is not None:
+        print(f"  Found champion-challenger data for {len(ml_df)} borrowers"
+              f" ({int(ml_df['flagged_for_review'].sum())} flagged for review, {int(ml_df['is_anomaly'].sum())} anomalous)")
+    else:
+        print("  Not found - ML card will show 'ML layer not run'")
 
     print("\nBuilding top-drivers explainability...")
     drivers = build_drivers(feature_scores)
@@ -57,9 +68,10 @@ def main():
     with open(os.path.join(OUTPUT_DIR, "trend_validation.json"), "w") as f:
         json.dump(trend_validation, f, indent=2, default=str)
 
-    print("\nBuilding standalone HTML dashboard (radar chart + drivers + trend)...")
+    print("\nBuilding standalone HTML dashboard (5C scorecard + radar/bar/donut/gauge/waterfall + drivers + trend)...")
     dashboard_path = os.path.join(OUTPUT_DIR, "dashboard.html")
-    build_dashboard(scores, segmentation, drivers, trend, dashboard_path)
+    build_dashboard(scores, segmentation, drivers, trend, feature_scores, features, lake["master"], lake, dashboard_path,
+                    ml_df=ml_df, ml_holdout_eval=ml_holdout_eval)
     print(f"  -> {dashboard_path}")
 
     print(f"\nDone. Outputs in {OUTPUT_DIR}/")

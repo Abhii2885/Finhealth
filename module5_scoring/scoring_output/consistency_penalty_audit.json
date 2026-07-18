@@ -1,6 +1,6 @@
 {
-  "n_penalized": 80,
-  "healthy_borrowers_penalized": 27,
+  "n_penalized": 78,
+  "healthy_borrowers_penalized": 20,
   "actual_underreporters_penalized": 18,
   "avg_points_lost": -7.5
 }

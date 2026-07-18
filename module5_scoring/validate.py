@@ -31,7 +31,7 @@ def audit_consistency_penalty(m):
     plainly - this check was disclosed at ~40% precision in Module 2 and
     that cost shows up here as healthy borrowers losing points.
     """
-    penalized = m[m["revenue_growth_signal_consistency_penalty"] < 0]
+    penalized = m[m["capacity_consistency_penalty"] < 0]
     if len(penalized) == 0:
         return {"n_penalized": 0}
 
@@ -42,5 +42,5 @@ def audit_consistency_penalty(m):
         "n_penalized": int(len(penalized)),
         "healthy_borrowers_penalized": int(healthy_penalized),
         "actual_underreporters_penalized": int(actual_underreporters_penalized),
-        "avg_points_lost": round(penalized["revenue_growth_signal_consistency_penalty"].mean(), 2),
+        "avg_points_lost": round(penalized["capacity_consistency_penalty"].mean(), 2),
     }

@@ -1,19 +1,20 @@
 """
-Weighted aggregation of dimension scores (this module) with Module 4's
-per-borrower effective weights into one composite 0-100 score + grade.
+Weighted aggregation of the 5 Cs' dimension scores (this module) with
+Module 4's per-borrower effective weights into one composite 0-100 score +
+grade.
 
-Zero-weight dimensions (not_applicable, not_computable_in_prototype, or
-concentration_risk which is ALWAYS zero-weight in this prototype - see
-Module 4) are excluded from the weighted sum entirely, not treated as a
-zero score. A NaN dimension score with 0 weight contributes 0 * NaN which
-is NaN in pandas/numpy - explicitly guarded against below so one
-inapplicable dimension can't silently NaN-out an otherwise valid composite.
+Zero-weight dimensions (not_applicable - e.g. Capital when
+balance_sheet_available=False, or Collateral when has_collateral=False)
+are excluded from the weighted sum entirely, not treated as a zero score.
+A NaN dimension score with 0 weight contributes 0 * NaN which is NaN in
+pandas/numpy - explicitly guarded against below so one inapplicable
+dimension can't silently NaN-out an otherwise valid composite.
 """
 
 import pandas as pd
-from config import DIMENSION_SCORING_FEATURES, GRADE_BANDS
+from config import SCORING_SUBMETRICS, GRADE_BANDS
 
-SCORABLE_DIMENSIONS = list(DIMENSION_SCORING_FEATURES.keys())  # excludes concentration_risk (no source)
+SCORABLE_DIMENSIONS = sorted(set(dim for dim, _ in SCORING_SUBMETRICS))  # the 5 Cs
 
 
 def _grade(score):
