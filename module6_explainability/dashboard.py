@@ -22,7 +22,7 @@ from config import DIMENSIONS, DIMENSION_LABELS, RAG_GREEN_MIN, RAG_AMBER_MIN, P
     ML_CHIP_DIVERGENCE_LABEL, ML_CHIP_DIVERGENCE_TOOLTIP, ML_CHIP_ANOMALY_LABEL, ML_CHIP_ANOMALY_TOOLTIP, \
     ML_ADVISED_TAG_LABEL, ML_ADVISED_TAG_TOOLTIP, ML_DIVERGENCE_FLAG_THRESHOLD, FEATURE_LABELS
 from commentary import build_commentary
-from ml_commentary import build_ml_explanation
+from ml_commentary import build_ml_explanation, compute_feature_percentiles, build_anomaly_explanation
 from formatting import format_submetric_value
 from periods import SUBMETRIC_PERIOD_SOURCE, build_period_lookup
 
@@ -67,6 +67,7 @@ STATUS_NOTES = {
 def _build_borrower_records(scores_df, segmentation_df, drivers_df, trend_df, feature_scores_df,
                              features_df, master_df, period_lookup, ml_df=None):
     ml_lookup = ml_df.set_index("borrower_id").to_dict("index") if ml_df is not None else {}
+    ml_percentiles = compute_feature_percentiles(features_df) if ml_df is not None else None
     seg_lookup = segmentation_df.set_index("borrower_id").to_dict("index")
     driver_lookup = drivers_df.set_index("borrower_id").to_dict("index")
     fscore_lookup = feature_scores_df.set_index("borrower_id").to_dict("index")
@@ -172,6 +173,10 @@ def _build_borrower_records(scores_df, segmentation_df, drivers_df, trend_df, fe
         if ml_block.get("available"):
             explanation, advised = build_ml_explanation(dims, ml_block, FEATURE_LABELS)
             ml_block["explanation"] = explanation
+            if ml_block.get("is_anomaly") and ml_percentiles is not None and bid in ml_percentiles.index:
+                ml_block["anomaly_explanation"] = build_anomaly_explanation(
+                    bid, feat, ml_percentiles.loc[bid].to_dict(), FEATURE_LABELS
+                )
             ml_block["advised_submetrics"] = advised
             for d in dims:
                 for sm in d["submetrics"]:
@@ -358,7 +363,9 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
   table.ml-table tr:last-child td {{ border-bottom: none; }}
   table.ml-table td:last-child {{ text-align: right; font-weight: 700; white-space: nowrap; }}
   .ml-meta {{ font-size: 10.5px; color: var(--muted); line-height: 1.6; margin-top: 8px; }}
-  .ml-explanation {{ font-size: 12.5px; line-height: 1.6; color: var(--text); background: #f7f4fc; border: 1px solid #c9bbe4; border-radius: 6px; padding: 10px 12px; margin: 8px 0 12px; }}
+  .ml-explanation {{ font-size: 12.5px; line-height: 1.6; color: var(--text); background: #f7f4fc; border: 1px solid #c9bbe4; border-radius: 6px; padding: 10px 12px; margin: 8px 0 12px; text-align: left; }}
+  #ml-anomaly-note {{ display: none; }}
+  #ml-anomaly-note.open {{ display: block; }}
   .ml-advised-tag {{ font-size: 8.5px; background: #6d4fa3; color: #fff; padding: 1px 5px; border-radius: 3px; margin-left: 5px; vertical-align: middle; letter-spacing: 0.03em; cursor: help; }}
   .export-bar {{ display: flex; justify-content: flex-end; align-items: center; gap: 8px; padding: 8px 28px; max-width: 1400px; margin: 0 auto; }}
   #override-count {{ font-size: 11px; color: var(--muted); }}
@@ -391,6 +398,7 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
       <div class="segment" id="segment">--</div>
       <div class="context-strip" id="context-strip"></div>
       <div class="ml-chips" id="ml-chips"></div>
+      <div id="ml-anomaly-note"></div>
     </div>
     <div id="dim-list"></div>
     <div id="ml-card-container"></div>
@@ -404,9 +412,17 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
       <div class="footer-note" style="padding:10px 0 0;" id="chart-caption"></div>
     </div>
     <div class="panel">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+        <span style="font-size:13px;font-weight:700;">Financial Health Trend</span>
+        <button type="button" class="info-btn" id="trend-info-btn" title="How is this trend calculated?">i</button>
+      </div>
+      <div class="method-note" id="trend-method-note">
+        How to read this chart: we split this borrower's available history into 4 stages (quarter of the way through, halfway, three-quarters, and today) and measure their financial health at each stage. The health measure (0-100, higher is better) combines three simple signals: how much money they keep in the bank, how often their cheques bounce, and how regularly they file GST on time - each compared against the other 399 borrowers at that same stage. A rising line means their finances have been getting stronger over time; a falling line means they have been weakening. Note: this is a simplified trend view using 3 reliable signals, not the full 22-parameter score recalculated at each point in the past.
+      </div>
+      <div class="footer-note" id="trend-summary" style="padding:4px 0 8px;font-size:12.5px;"></div>
       <canvas id="trend-chart"></canvas>
       <div class="footer-note" style="padding:10px 0 0;">
-        Trend indicator (y-axis, 0-100) averages 3 point-in-time metrics - average bank balance, cheque bounce rate, GST on-time filing - each percentile-ranked within its own checkpoint's cross-section. X-axis is % of THIS borrower's own observed history (not fixed calendar months, since some borrowers have as little as ~3.5 months of data). This is a robust proxy, NOT a replay of the full Module 5 5C composite methodology at each checkpoint.
+        Left to right = start of this borrower's records to today. Higher = financially healthier. Click the (i) above for how it's calculated.
       </div>
     </div>
   </div>
@@ -678,6 +694,8 @@ function renderMlSection(id) {{
 
   const chipsEl = document.getElementById('ml-chips');
   chipsEl.innerHTML = '';
+  const anomalyNoteEl = document.getElementById('ml-anomaly-note');
+  anomalyNoteEl.innerHTML = '';
   if (ml.available && liveFlagged) {{
     const chip = document.createElement('span');
     chip.className = 'ml-chip divergence';
@@ -690,8 +708,27 @@ function renderMlSection(id) {{
     chip.className = 'ml-chip anomaly';
     chip.textContent = ML_STRINGS.chip_anomaly_label;
     chip.title = ML_STRINGS.chip_anomaly_tooltip;
+    const infoBtn = document.createElement('button');
+    infoBtn.type = 'button';
+    infoBtn.className = 'info-btn';
+    infoBtn.style.marginLeft = '5px';
+    infoBtn.style.borderColor = '#6d4fa3';
+    infoBtn.style.color = '#6d4fa3';
+    infoBtn.textContent = 'i';
+    infoBtn.title = 'Why is this borrower flagged as unusual?';
+    infoBtn.addEventListener('click', (e) => {{
+      e.stopPropagation();
+      anomalyNoteEl.classList.toggle('open');
+    }});
+    chip.appendChild(infoBtn);
     chipsEl.appendChild(chip);
+
+    const note = document.createElement('div');
+    note.className = 'ml-explanation';
+    note.textContent = ml.anomaly_explanation || 'No detailed explanation available for this borrower.';
+    anomalyNoteEl.appendChild(note);
   }}
+  anomalyNoteEl.classList.remove('open');
 
   const container = document.getElementById('ml-card-container');
   container.innerHTML = '';
@@ -948,8 +985,31 @@ function renderMainChart(rec) {{
   }}
 }}
 
+// Plain-language stage names for the 4 checkpoints (25/50/75/100% of this
+// borrower's observed history) - clearer for a non-technical reader than
+// raw percentages.
+const TREND_STAGE_LABELS = ['Early records', 'Midway', 'Recent', 'Today'];
+
+function trendSummaryText(rec) {{
+  const vals = rec.trend.map(t => t.value).filter(v => v !== null && v !== undefined);
+  if (vals.length < 2) return 'Not enough history to read a trend for this borrower.';
+  const first = vals[0], last = vals[vals.length - 1];
+  const change = Math.round((last - first) * 10) / 10;
+  let direction;
+  if (change >= 5) direction = 'has been IMPROVING';
+  else if (change <= -5) direction = 'has been WEAKENING';
+  else direction = 'has stayed broadly STABLE';
+  // Same cut points as the RAG coloring, so "strong/moderate/weak" here
+  // never contradicts the green/amber/red shown elsewhere on the page.
+  const level = last >= RAG_GREEN ? 'a strong' : last >= RAG_AMBER ? 'a moderate' : 'a weak';
+  return `In simple terms: this borrower's financial health ${{direction}} over their observed history \\u2014 ` +
+         `from ${{first}} to ${{last}} out of 100 (${{change > 0 ? '+' : ''}}${{change}} points), currently at ${{level}} level.`;
+}}
+
 function renderTrendChart(rec) {{
-  const trendLabels = rec.trend.map(t => (t.frac * 100).toFixed(0) + '%');
+  document.getElementById('trend-summary').textContent = trendSummaryText(rec);
+
+  const trendLabels = rec.trend.map((t, i) => TREND_STAGE_LABELS[i] || ((t.frac * 100).toFixed(0) + '%'));
   const trendValues = rec.trend.map(t => t.value);
 
   if (trendChart) trendChart.destroy();
@@ -958,7 +1018,7 @@ function renderTrendChart(rec) {{
     data: {{
       labels: trendLabels,
       datasets: [{{
-        label: 'Trend indicator (0-100)',
+        label: 'Financial health (0-100, higher = healthier)',
         data: trendValues,
         borderColor: '#0b6e3d',
         backgroundColor: 'rgba(11,110,61,0.12)',
@@ -968,12 +1028,12 @@ function renderTrendChart(rec) {{
     }},
     options: {{
       scales: {{
-        y: {{ min: 0, max: 100, title: {{ display: true, text: 'Trend indicator (0-100, higher = healthier)', color: '#1a2b22' }}, ticks: {{ color: '#5c6f64' }}, grid: {{ color: '#d7e5dc' }} }},
-        x: {{ ticks: {{ color: '#5c6f64' }}, grid: {{ color: '#d7e5dc' }}, title: {{ display: true, text: '% of this borrower\\'s observed history', color: '#1a2b22' }} }}
+        y: {{ min: 0, max: 100, title: {{ display: true, text: 'Financial health (0-100, higher = healthier)', color: '#1a2b22' }}, ticks: {{ color: '#5c6f64' }}, grid: {{ color: '#d7e5dc' }} }},
+        x: {{ ticks: {{ color: '#5c6f64' }}, grid: {{ color: '#d7e5dc' }}, title: {{ display: true, text: 'Progress through this borrower\\'s records (start \\u2192 today)', color: '#1a2b22' }} }}
       }},
       plugins: {{
         legend: {{ labels: {{ color: '#1a2b22' }} }},
-        tooltip: {{ callbacks: {{ label: (c) => 'Trend indicator: ' + c.raw + ' / 100' }} }}
+        tooltip: {{ callbacks: {{ label: (c) => 'Financial health: ' + c.raw + ' / 100' }} }}
       }}
     }}
   }});
@@ -981,6 +1041,9 @@ function renderTrendChart(rec) {{
 
 document.getElementById('borrower-search').addEventListener('change', (e) => {{ if (ORIGINAL_DATA[e.target.value]) renderBorrower(e.target.value); }});
 document.getElementById('borrower-search').addEventListener('input', (e) => {{ if (ORIGINAL_DATA[e.target.value]) renderBorrower(e.target.value); }});
+document.getElementById('trend-info-btn').addEventListener('click', () => {{
+  document.getElementById('trend-method-note').classList.toggle('open');
+}});
 
 updateOverrideCount();
 document.getElementById('borrower-search').value = IDS[0];

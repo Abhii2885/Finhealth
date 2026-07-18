@@ -19,8 +19,24 @@ FRACTION_PCT_KEYS = {"gst_ontime_filing_ratio", "epfo_ontime_remittance_ratio", 
                       "cheque_bounce_rate"}
 SIGNED_FRACTION_PCT_KEYS = {"revenue_cagr_3yr", "projected_revenue_growth_rate"}
 
-DISPUTE_SEVERITY_LABELS = {0.0: "No dispute on record", 0.5: "Resolved dispute (closed)", 1.0: "Ongoing dispute (open)"}
 COVENANT_LABELS = {1.0: "Compliant", 0.0: "Breached"}
+
+# Duplicated from module3_feature_engineering/character_features.py -
+# 0.0 = a dispute of that type is CURRENTLY ONGOING (worst case), the
+# sentinel = never had one (best case), anything else = years since the
+# most recent one was resolved. Replaces a stale DISPUTE_SEVERITY_LABELS
+# dict left over from the pre-Score-Band boolean severity scheme
+# (0.0/0.5/1.0) that no longer matched this field's real value range -
+# that bug made an ACTIVE dispute (0.0) display as "No dispute on record".
+NEVER_HAD_DISPUTE_SENTINEL_YEARS = 100.0
+
+
+def _format_dispute_recency(raw_value):
+    if raw_value == 0.0:
+        return "Active dispute (ongoing)"
+    if raw_value >= NEVER_HAD_DISPUTE_SENTINEL_YEARS:
+        return "No disputes on record"
+    return f"Resolved {raw_value:.1f} years ago"
 
 
 def fmt_inr(v):
@@ -49,11 +65,13 @@ def format_submetric_value(key, raw_value, extra=None):
         return None
 
     if key in ("civil_suit_years_since_active", "other_legal_dispute_years_since_active"):
-        return DISPUTE_SEVERITY_LABELS.get(raw_value, str(raw_value))
+        return _format_dispute_recency(raw_value)
     if key == "covenant_compliance_flag":
         return COVENANT_LABELS.get(raw_value, str(raw_value))
     if key == "bureau_score":
         return f"{raw_value:.0f} (of 300-900)"
+    if key == "estimated_value_inr":
+        return fmt_inr(raw_value)
     if key == "owner_time_in_business_years":
         return f"{raw_value:.1f} years"
     if key in RATIO_X_KEYS:

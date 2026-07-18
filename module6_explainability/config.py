@@ -70,6 +70,7 @@ FEATURE_LABELS = {
     "rent_payment_timeliness": "Rent payment timeliness",
     "salary_payment_timeliness": "Salary payment timeliness",
     "collateral_quality_score": "Collateral quality",
+    "estimated_value_inr": "Collateral estimated value",
 }
 
 # Trend checkpoints: months into the shared recent 12-month window
@@ -173,6 +174,29 @@ DIMENSION_METHODOLOGY_NOTE = (
     "borrower, so the remaining submetrics absorb its share rather than "
     "the score being penalized for a missing input."
 )
+
+# Duplicated from module9_ml_layer/config.py's ML_FEATURE_COLUMNS - the
+# exact 22-feature matrix the Isolation Forest sees, needed here to
+# explain a per-borrower anomaly flag (which features are most unusual
+# for THIS borrower vs. the population) without re-running sklearn.
+# Keep in sync if Module 9's feature list changes.
+ML_FEATURE_COLUMNS = [
+    "current_ratio", "leverage_ratio", "dscr", "interest_coverage_ratio",
+    "cash_flow_match_ratio", "revenue_cagr_3yr", "projected_revenue_growth_rate",
+    "customer_concentration_pct", "supplier_concentration_pct",
+    "bureau_score", "civil_suit_years_since_active", "other_legal_dispute_years_since_active",
+    "cheque_bounce_rate", "owner_time_in_business_years",
+    "net_worth_to_assets_ratio",
+    "covenant_compliance_flag", "gst_ontime_filing_ratio", "utility_payment_timeliness",
+    "epfo_ontime_remittance_ratio", "rent_payment_timeliness", "salary_payment_timeliness",
+    "estimated_value_inr",
+]
+
+# Only submetrics this extreme (top/bottom N percentile) are named in the
+# anomaly explanation - keeps the 2-3 line explanation focused on what's
+# actually driving the flag, not every mildly-unusual value.
+ML_ANOMALY_EXPLANATION_PERCENTILE_CUTOFF = 15.0
+ML_ANOMALY_EXPLANATION_MAX_FEATURES = 3
 
 # Duplicated from module5_scoring/config.py's GRADE_BANDS (not imported
 # cross-module - this project runs each module as a standalone script with
