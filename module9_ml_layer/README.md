@@ -140,16 +140,29 @@ tuned down to look more production-ready than it is.
   the score of record everywhere else in this pipeline (Modules 6/7/8).
   This module only produces a parallel `challenger_score` and a
   `flagged_for_review` signal for monitoring.
-- **Surfaced on the dashboard as advisory-only.** Module 6's dashboard
-  shows this module's output as small advisory chips near the composite
-  score ("Model divergence — review advised" when `flagged_for_review`;
-  "Unusual profile (ML)" when `is_anomaly`) plus a collapsed "ML Model
-  Insights" card with the full numbers (challenger score, divergence,
-  anomaly score, held-out validation metrics) — every value tagged as
-  ML-generated, with an explicit "does not change the score of record"
-  banner. The dashboard builds fine without this module's output (the
-  card then says "ML layer not run"). Note the divergence flag threshold
-  was recalibrated 15→25 points for this surface: at 15, a third of all
+- **Surfaced on the dashboard as advisory-only, with a plain-language
+  explanation.** Module 6's dashboard shows this module's output as small
+  advisory chips near the composite score ("Model divergence — review
+  advised" when `flagged_for_review`; "Unusual profile (ML)" when
+  `is_anomaly`) plus a collapsed "ML Model Insights" card. The card now
+  includes an auto-generated (template-based, not LLM-generated) 2-3 line
+  explanation naming which submetrics most explain the disagreement -
+  computed by ranking every scored submetric on how much it drags the
+  champion's composite down (dimension weight × submetric weight ×
+  (100 - score)) - and tags those specific rows in the scorecard table
+  with a small "ML" badge so a reviewer knows exactly where to look.
+  Champion score, divergence, and the review flag in the card are LIVE:
+  they recompute from the current (possibly overridden) composite score
+  on every render, so overriding a flagged submetric and resubmitting
+  immediately shows whether that closes the gap with the challenger.
+  The challenger score and anomaly score stay frozen at the last Module 9
+  run - overriding a submetric does not re-run the trained model, only
+  the arithmetic comparison against it. Every override's required
+  justification is exported as the JSON feedback artifact intended for
+  the challenger's future retraining (see Module 6's override mechanism).
+  The dashboard builds fine without this module's output (the card then
+  says "ML layer not run"). Note the divergence flag threshold was
+  recalibrated 15→25 points for this surface: at 15, a third of all
   borrowers were flagged, which dilutes the flag to noise; at 25, ~9% are
   flagged. Still an assumption pending real-outcome calibration.
   Module 7's mock API still serves the champion score only.

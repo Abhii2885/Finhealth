@@ -19,8 +19,10 @@ import os
 import pandas as pd
 from config import DIMENSIONS, DIMENSION_LABELS, RAG_GREEN_MIN, RAG_AMBER_MIN, PARAMETER_SCORE_SCALE, GRADE_BANDS, \
     METHODOLOGY_TEXT, DIMENSION_METHODOLOGY_NOTE, ML_ADVISORY_NOTE, \
-    ML_CHIP_DIVERGENCE_LABEL, ML_CHIP_DIVERGENCE_TOOLTIP, ML_CHIP_ANOMALY_LABEL, ML_CHIP_ANOMALY_TOOLTIP
+    ML_CHIP_DIVERGENCE_LABEL, ML_CHIP_DIVERGENCE_TOOLTIP, ML_CHIP_ANOMALY_LABEL, ML_CHIP_ANOMALY_TOOLTIP, \
+    ML_ADVISED_TAG_LABEL, ML_ADVISED_TAG_TOOLTIP, ML_DIVERGENCE_FLAG_THRESHOLD, FEATURE_LABELS
 from commentary import build_commentary
+from ml_commentary import build_ml_explanation
 from formatting import format_submetric_value
 from periods import SUBMETRIC_PERIOD_SOURCE, build_period_lookup
 
@@ -167,6 +169,14 @@ def _build_borrower_records(scores_df, segmentation_df, drivers_df, trend_df, fe
         else:
             ml_block = {"available": False}
 
+        if ml_block.get("available"):
+            explanation, advised = build_ml_explanation(dims, ml_block, FEATURE_LABELS)
+            ml_block["explanation"] = explanation
+            ml_block["advised_submetrics"] = advised
+            for d in dims:
+                for sm in d["submetrics"]:
+                    sm["ml_advised"] = sm["key"] in advised
+
         record = {
             "borrower_id": bid,
             "composite_score": composite_score,
@@ -235,6 +245,8 @@ def build_dashboard(scores_df, segmentation_df, drivers_df, trend_df, feature_sc
         "chip_divergence_tooltip": ML_CHIP_DIVERGENCE_TOOLTIP,
         "chip_anomaly_label": ML_CHIP_ANOMALY_LABEL,
         "chip_anomaly_tooltip": ML_CHIP_ANOMALY_TOOLTIP,
+        "advised_tag_label": ML_ADVISED_TAG_LABEL,
+        "advised_tag_tooltip": ML_ADVISED_TAG_TOOLTIP,
     })
     chartjs_source = _load_chartjs_source()
 
@@ -243,7 +255,7 @@ def build_dashboard(scores_df, segmentation_df, drivers_df, trend_df, feature_sc
         feature_labels_json=feature_labels_json, dim_labels_json=dim_labels_json,
         grade_bands_json=grade_bands_json, methodology_json=methodology_json,
         dim_methodology_note_json=dim_methodology_note_json,
-        ml_meta_json=ml_meta_json, ml_strings_json=ml_strings_json,
+        ml_meta_json=ml_meta_json, ml_strings_json=ml_strings_json, ml_divergence_threshold=ML_DIVERGENCE_FLAG_THRESHOLD,
         param_scale=PARAMETER_SCORE_SCALE, rag_green=RAG_GREEN_MIN, rag_amber=RAG_AMBER_MIN,
         chartjs_source=chartjs_source,
     )
@@ -346,6 +358,8 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
   table.ml-table tr:last-child td {{ border-bottom: none; }}
   table.ml-table td:last-child {{ text-align: right; font-weight: 700; white-space: nowrap; }}
   .ml-meta {{ font-size: 10.5px; color: var(--muted); line-height: 1.6; margin-top: 8px; }}
+  .ml-explanation {{ font-size: 12.5px; line-height: 1.6; color: var(--text); background: #f7f4fc; border: 1px solid #c9bbe4; border-radius: 6px; padding: 10px 12px; margin: 8px 0 12px; }}
+  .ml-advised-tag {{ font-size: 8.5px; background: #6d4fa3; color: #fff; padding: 1px 5px; border-radius: 3px; margin-left: 5px; vertical-align: middle; letter-spacing: 0.03em; cursor: help; }}
   .export-bar {{ display: flex; justify-content: flex-end; align-items: center; gap: 8px; padding: 8px 28px; max-width: 1400px; margin: 0 auto; }}
   #override-count {{ font-size: 11px; color: var(--muted); }}
 </style>
@@ -402,8 +416,8 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
   Synthetic data (see Module 1 README). Percentile-based scores are relative to this 400-borrower batch, not a fixed portable scale.
   Parameter scores are shown out of {param_scale} for readability; weights are used only in the background composite calculation.
   RAG thresholds: green &ge;{rag_green}, amber {rag_amber}-{rag_green}, red &lt;{rag_amber} (applied to both the composite and each C).
-  Overriding a score recomputes that C's score and the overall composite live in this browser tab - it does not change the underlying pipeline output files.
-  See module5_scoring/README.md and module6_explainability/README.md for full methodology and known limitations.
+  Overriding a score recomputes that C's score, the overall composite, and the ML Model Insights card's divergence/review-flag live in this browser tab - it does not change the underlying pipeline output files, and does not re-run the ML challenger model itself (its score reflects the last Module 9 pipeline run). Override justifications export as JSON feedback for the ML model's future retraining.
+  See module5_scoring/README.md, module6_explainability/README.md, and module9_ml_layer/README.md for full methodology and known limitations.
 </div>
 
 <script>
@@ -417,6 +431,7 @@ const METHODOLOGY = {methodology_json};
 const DIM_METHODOLOGY_NOTE = {dim_methodology_note_json};
 const ML_META = {ml_meta_json};
 const ML_STRINGS = {ml_strings_json};
+const ML_DIVERGENCE_THRESHOLD = {ml_divergence_threshold};
 const RAG_GREEN = {rag_green};
 const RAG_AMBER = {rag_amber};
 
@@ -616,7 +631,7 @@ function buildOverrideBox(id, dimKey, submetricKey, currentScore, boxId) {{
       <label style="font-size:11px;">Override score (0-100):</label>
       <input type="number" min="0" max="100" step="0.1" value="${{currentScore !== null ? currentScore : ''}}" class="ov-score" />
     </div>
-    <textarea class="ov-comment" placeholder="Required: justification for this override (used as feedback for future model training)"></textarea>
+    <textarea class="ov-comment" placeholder="Required: justification for this override (exported as feedback for the ML challenger model's future retraining)"></textarea>
     <button class="primary ov-save" disabled>Save override</button>
   `;
   const textarea = div.querySelector('.ov-comment');
@@ -642,18 +657,28 @@ function buildOverrideBox(id, dimKey, submetricKey, currentScore, boxId) {{
 }}
 
 // ---------- ML layer (Module 9) surfacing: chips + collapsed detail ----------
-// Deliberately STATIC per borrower: reads ORIGINAL_DATA's ml block, never
-// the override-mutated working copy. An override changes the champion
-// score only - recomputing divergence client-side would falsely imply the
-// challenger model reacted to the override, which it didn't (it runs in
-// the Module 9 pipeline, not in this page).
+// challenger_score, anomaly_score, is_anomaly, and the explanation/advised-
+// submetrics list are STATIC (frozen at the last Module 9 pipeline run -
+// a separately trained model that doesn't re-infer per keystroke in this
+// page). Champion score, divergence, and the divergence flag ARE live -
+// they read getRecord(id) (the override-aware working copy) and recompute
+// on every render, so the ML card never shows a champion score that
+// contradicts what the rest of the page is showing.
 function renderMlSection(id) {{
   const ml = (ORIGINAL_DATA[id] && ORIGINAL_DATA[id].ml) || {{available: false}};
-  const champion = ORIGINAL_DATA[id] ? ORIGINAL_DATA[id].composite_score : null;
+  const rec = getRecord(id);
+  const champion = rec ? rec.composite_score : null;
+
+  let liveDivergence = null, liveFlagged = false;
+  if (ml.available && champion !== null && champion !== undefined && ml.challenger_score !== null && ml.challenger_score !== undefined) {{
+    liveDivergence = Math.round((ml.challenger_score - champion) * 10) / 10;
+    liveFlagged = Math.abs(liveDivergence) >= ML_DIVERGENCE_THRESHOLD;
+  }}
+  const overridden = ml.available && liveFlagged !== ml.flagged_for_review;
 
   const chipsEl = document.getElementById('ml-chips');
   chipsEl.innerHTML = '';
-  if (ml.available && ml.flagged_for_review) {{
+  if (ml.available && liveFlagged) {{
     const chip = document.createElement('span');
     chip.className = 'ml-chip divergence';
     chip.textContent = ML_STRINGS.chip_divergence_label;
@@ -693,17 +718,24 @@ function renderMlSection(id) {{
     advisory.textContent = ML_STRINGS.advisory_note;
     body.appendChild(advisory);
 
+    if (ml.explanation) {{
+      const expl = document.createElement('div');
+      expl.className = 'ml-explanation';
+      expl.textContent = ml.explanation;
+      body.appendChild(expl);
+    }}
+
     const table = document.createElement('table');
     table.className = 'ml-table';
     const fmt = (v, suffix) => (v === null || v === undefined) ? '\\u2014' : v + (suffix || '');
-    const divergenceStr = (ml.divergence === null || ml.divergence === undefined) ? '\\u2014'
-      : (ml.divergence > 0 ? '+' : '') + ml.divergence + ' pts';
+    const divergenceStr = (liveDivergence === null || liveDivergence === undefined) ? '\\u2014'
+      : (liveDivergence > 0 ? '+' : '') + liveDivergence + ' pts';
     table.innerHTML = `
-      <tr><td>Champion score <span style="color:var(--muted);font-size:10.5px;">(rule-based 5C scorecard \\u2014 score of record)</span></td><td>${{fmt(champion)}}</td></tr>
-      <tr><td>Challenger score <span class="ml-tag">ML</span> <span style="color:var(--muted);font-size:10.5px;">(Gradient Boosting)</span></td><td>${{fmt(ml.challenger_score)}}</td></tr>
-      <tr><td>Divergence (challenger \\u2212 champion, as of last pipeline run)</td><td>${{divergenceStr}}</td></tr>
+      <tr><td>Champion score <span style="color:var(--muted);font-size:10.5px;">(rule-based 5C scorecard \\u2014 score of record, live)</span></td><td>${{fmt(champion)}}</td></tr>
+      <tr><td>Challenger score <span class="ml-tag">ML</span> <span style="color:var(--muted);font-size:10.5px;">(Gradient Boosting, as of last pipeline run)</span></td><td>${{fmt(ml.challenger_score)}}</td></tr>
+      <tr><td>Divergence (challenger \\u2212 champion, live)</td><td>${{divergenceStr}}</td></tr>
       <tr><td>Anomaly score <span class="ml-tag">ML</span> <span style="color:var(--muted);font-size:10.5px;">(Isolation Forest, 0-100, higher = more unusual)</span></td><td>${{fmt(ml.anomaly_score)}}</td></tr>
-      <tr><td>Flagged for manual review (divergence \\u2265 threshold)</td><td>${{ml.flagged_for_review ? 'YES' : 'No'}}</td></tr>
+      <tr><td>Flagged for manual review (divergence \\u2265 ${{ML_DIVERGENCE_THRESHOLD}}, live)</td><td>${{liveFlagged ? 'YES' : 'No'}}${{overridden ? ' <span style=\\'color:var(--accent);font-size:10px;\\'>(changed by override)</span>' : ''}}</td></tr>
       <tr><td>Unusual data profile (anomaly detector)</td><td>${{ml.is_anomaly ? 'YES' : 'No'}}</td></tr>
     `;
     body.appendChild(table);
@@ -807,10 +839,11 @@ function renderBorrower(id) {{
       const infoId = `info-${{id}}-${{d.key}}-${{sm.key}}`;
       const naTag = sm.status === 'not_applicable' ? '<span class="na-tag">N/A</span>' :
                     sm.status === 'insufficient_data' ? '<span class="na-tag">thin data</span>' : '';
+      const mlTag = sm.ml_advised ? `<span class="ml-advised-tag" title="${{ML_STRINGS.advised_tag_tooltip}}">${{ML_STRINGS.advised_tag_label}}</span>` : '';
 
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td><span class="param-cell"><span class="rag-dot rag-${{sm.rag}}"></span>${{label}}${{naTag}}</span>${{sm.note ? '<span class="sub-note">' + sm.note + '</span>' : ''}}</td>
+        <td><span class="param-cell"><span class="rag-dot rag-${{sm.rag}}"></span>${{label}}${{naTag}}${{mlTag}}</span>${{sm.note ? '<span class="sub-note">' + sm.note + '</span>' : ''}}</td>
         <td class="value-cell">${{sm.display_value !== null && sm.display_value !== undefined ? '<span class="value-main">' + sm.display_value + '</span>' : '—'}}${{sm.period ? '<span class="value-period">' + sm.period + '</span>' : ''}}</td>
         <td class="score-cell${{sm.overridden ? ' score-overridden' : ''}}">${{fmtScore10(sm.score_10)}}${{sm.overridden ? '<span class="overridden-tag">override</span>' : ''}}</td>
         <td class="override-cell"><button class="override-link" type="button">override</button></td>

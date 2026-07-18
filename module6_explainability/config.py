@@ -153,6 +153,15 @@ ML_CHIP_ANOMALY_TOOLTIP = (
     "as statistically unusual for this population — not necessarily unhealthy. "
     "Advisory: verify the underlying inputs. Does not change the score."
 )
+# Tag shown on a submetric row the ML explanation names as worth revisiting.
+ML_ADVISED_TAG_LABEL = "ML"
+ML_ADVISED_TAG_TOOLTIP = "The ML challenger's explanation names this submetric as a top contributor to its disagreement with the scorecard."
+
+# Duplicated from module9_ml_layer/config.py's DIVERGENCE_FLAG_THRESHOLD -
+# needed client-side so the dashboard can recompute flagged_for_review
+# live after a submetric override changes the champion score. Keep in
+# sync if Module 9's threshold changes.
+ML_DIVERGENCE_FLAG_THRESHOLD = 25.0
 
 # Generic explainer for each C's "Overall <C> score" row - same weighted-
 # average mechanism for all 5 Cs, so one shared string rather than 5
