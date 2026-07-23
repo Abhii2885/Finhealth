@@ -109,8 +109,10 @@ challenger        85.00      54.93        20.10
 champion           74.29      60.10        42.49
 ```
 
-32.8% of borrowers (131/400) are flagged for review (`|divergence| >=
-15`), and the disagreement isn't random noise around zero — it has a
+8.8% of borrowers (35/400) are flagged for review at the current
+`|divergence| >= 25` threshold (recalibrated from the original 15,
+which flagged a third of the portfolio — too noisy for the flag to
+command attention), and the disagreement isn't random noise around zero — it has a
 consistent shape: the challenger scores distressed-profile borrowers
 **substantially lower** than the champion does (-22.4 points on average),
 scores healthy borrowers somewhat higher (+10.7), and roughly agrees on
@@ -128,11 +130,11 @@ illustrative anchors instead of a continuum of real outcomes, some of
 this divergence is mechanical (the challenger's target values were picked
 to track `GRADE_BANDS`' band centers, not the champion's own empirical
 archetype means) rather than purely a per-borrower disagreement signal.
-32.8% flagged is very likely too high a rate to be operationally usable
-as-is — a real deployment needs the divergence threshold (and ideally the
-target itself) calibrated against real outcomes before a credit manager
-should be expected to act on every flag. Reported plainly rather than
-tuned down to look more production-ready than it is.
+Even the recalibrated ~9% flag rate is a judgment call, not a
+calibrated number — a real deployment needs the divergence threshold
+(and ideally the target itself) calibrated against real outcomes before
+a credit manager should be expected to act on every flag. Reported
+plainly rather than tuned down to look more production-ready than it is.
 
 ## What this module deliberately does NOT do
 

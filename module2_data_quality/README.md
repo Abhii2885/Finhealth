@@ -1,109 +1,108 @@
-# Module 2 — Data Quality & Completeness Tiering (Track 3)
+# Module 2 — Data Quality & Submetric Availability (Track 3)
 
 Reads Module 1's `data_lake/` and answers three questions per borrower:
-is the data trustworthy (schema/referential checks), is there enough of it
-(completeness), and does it agree with itself across sources
-(GST vs bank consistency)? The outputs feed Module 5's dimension weighting
-— a missing dimension gets excluded and flagged, never defaulted to zero.
+is the data trustworthy (schema/referential checks), is there enough of
+it (completeness), and does it agree with itself across sources (GST vs
+bank consistency)? Its key output is the **per-submetric availability
+matrix** — for each of the 22 scorecard submetrics of the 5C framework,
+is it `available`, `insufficient_data`, or `not_applicable` for this
+borrower — which drives Module 4's exclude-and-renormalise weighting.
+A missing submetric is excluded and its weight redistributed, never
+defaulted to a zero score.
 
 ## Run it
 
 ```bash
 cd module2_data_quality
 pip install pandas numpy
-python run_module2.py                      # uses ../msme_data_gen/data_lake by default
-python run_module2.py /path/to/data_lake   # or point at a specific data lake
+python run_module2.py ../module1_data_ingestion/data_lake
 ```
+
+(The no-argument default points at a legacy directory name — pass the
+data-lake path explicitly as above.)
 
 Produces `quality_output/`:
 
 | File | Description |
 |---|---|
 | `schema_issues.csv` | Real schema/referential issues found in the data lake (0 on a clean Module 1 run) |
-| `selftest_report.csv` | Proof the validator catches 5 known injected defect types |
-| `completeness_report.csv` | Per-borrower per-source coverage (GST filing %, bank active-day %, EPFO filing %) + status |
+| `selftest_report.csv` | Proof the validator catches 7 known injected defect types |
+| `completeness_report.csv` | Per-borrower per-source coverage + status |
 | `consistency_report.csv` | GST-vs-bank ratio + consistency flag per borrower |
 | `consistency_backtest.json` | Precision/recall of the consistency flag against hidden ground truth |
-| `dimension_availability.csv` | Per-borrower, per-dimension: available / insufficient_data / not_applicable / not_computable_in_prototype |
+| `submetric_availability.csv` | Per-borrower status for each of the 22 `(dimension, submetric)` pairs — the file Module 4 consumes |
+| `dimension_availability.csv` | Legacy coarse per-dimension view (superseded by the submetric file) |
 | `quality_tier.csv` | Re-derived completeness tier (Full/Partial/Thin) + EPFO reliability flag |
+
+## How availability is decided
+
+`config.SUBMETRIC_SOURCE_MAP` maps each of the 22 submetrics to its
+source(s) and, where applicable, a **gating flag** from Module 1's
+borrower master:
+
+- `is_gst_registered` gates GST-derived submetrics (non-GST borrowers
+  use self-declared turnover for revenue features instead);
+- `balance_sheet_available` gates current ratio, leverage, and net-worth
+  ratio;
+- `has_bureau_record` gates the bureau score;
+- `has_existing_loan` gates DSCR, interest coverage, and covenant
+  compliance (no loan → genuinely not applicable, not missing);
+- `has_collateral` gates collateral quality.
+
+A gated-out submetric is `not_applicable`; one whose source exists but
+falls below the completeness threshold is `insufficient_data` (Module 4
+includes it at half weight); otherwise `available`.
 
 ## Results from this run (400 borrowers)
 
-**Schema validation:** 0 issues on Module 1's actual output. Don't read
-this as "the validator is weak" — the self-test below exists specifically
-to prove otherwise.
+**Schema validation:** 0 issues on Module 1's actual output.
 
-**Self-test (proves the validator has teeth):** 5/5 injected defect types
-caught — duplicate GST period, negative turnover, orphan borrower_id,
-future-dated transaction, non-positive amount. See `selftest.py` for
-exactly what's injected. Do this check before trusting a "0 issues found"
-result on any dataset — a validator that never catches anything on its own
+**Self-test (proves the validator has teeth):** 7/7 injected defect
+types caught — duplicate GST period, negative turnover, orphan
+borrower_id, future-dated transaction, non-positive amount, non-positive
+current liabilities (balance sheet), and outstanding-exceeds-original
+(loan facilities). A validator that never catches anything on its own
 test data isn't validating, it's decorating.
 
-**Completeness:**
-- GST: 361 sufficient, 39 insufficient_data
-- Bank: 361 sufficient, 39 insufficient_data (same 39 — Tier A borrowers with genuinely short history, built into Module 1 v2)
-- EPFO: 156 sufficient (all Tier C), 244 not_applicable (all Tier A — correctly NOT counted as missing/bad)
+**Submetric availability** (400 borrowers × 22 submetrics = 8,800
+cells): 6,344 `available`, 2,051 `not_applicable` (gating flags — e.g.
+195 borrowers have no balance sheet, 249 no collateral), 405
+`insufficient_data` (thin-history borrowers).
 
-**Quality tier (re-derived from actual data, not Module 1's assumed tier):**
-Full 319, Partial 42, Thin 39. Zero Tier C borrowers had unreliable EPFO
-data in this run (156/156 reliable) — in this synthetic dataset, EPFO
-completeness doesn't degrade independently of the Tier A/C assignment, so
-this check currently has nothing real to catch. It's implemented and would
-fire if a future Module 1 version simulated EPFO-specific data gaps for
-Tier C borrowers (e.g. contribution disputes, employer non-remittance
-independent of overall business health) — flagging this as untested
-rather than pretending it's been exercised.
+**Quality tier** (re-derived from actual data, not Module 1's assumed
+tier): Full 321, Partial 40, Thin 39.
 
-**Cross-source consistency (GST turnover vs bank sales inflow), backtested
-against the hidden `is_gst_underreporter` label:**
-
-- Precision: 0.40, Recall: 0.29 (40 borrowers flagged, 55 actual under-reporters, 16 true positives)
-
-**Read this honestly, not optimistically.** A single annual ratio,
-flagging the top/bottom decile of the population, catches under 1 in 3 of
-the borrowers actually under-reporting, and 6 in 10 of what it does flag
-are false alarms. That's not nothing — it's meaningfully better than
-random (13.75% base rate vs 40% precision) — but it is not a fraud
-detector you'd want to act on alone. In a real build, this signal should
-be combined with: GST filing delay pattern, month-by-month ratio
-volatility (not just the annual snapshot), sector-adjusted norms instead
-of one population-wide band, and ideally bureau data. Presenting this as
-"we built a consistency check" is honest; presenting it as "we catch GST
-fraud" is not — say the first thing, not the second, if this comes up in
-a pitch.
-
-## Dimension availability
-
-Maps to Module 3's planned 6 scoring dimensions:
-
-| Dimension | Source(s) needed | Status in this prototype |
-|---|---|---|
-| Liquidity & Cash Flow | bank | Computable when bank completeness sufficient |
-| Repayment & Credit Behavior | bank (+ bureau) | Partially computable — bureau has no generator in this prototype, so this dimension is always missing one intended input |
-| Revenue & Growth Signal | GST | Computable when GST completeness sufficient |
-| Operational Stability | EPFO | Computable for Tier C only; `not_applicable` (not penalized) for Tier A |
-| Compliance Discipline | GST (+ utility) | Partially computable — utility payment data has no generator in this prototype |
-| Concentration Risk | buyer/supplier counterparty data | **Not computable at all** — Module 1's bank/UPI generator has no counterparty/vendor identifiers, only transaction categories. This is a real gap, not a completeness issue: no amount of "more data" from the current generator would fix it. If this dimension matters for the pitch, Module 1 needs a counterparty-ID field added before Module 2/3 can do anything with it. |
+**Cross-source consistency (GST turnover vs bank sales inflow),
+backtested against the hidden `is_gst_underreporter` label:** precision
+0.39, recall 0.27 (39 flagged, 55 actual under-reporters, 15 true
+positives). **Read this honestly:** a single annual ratio catches barely
+1 in 4 of the borrowers actually under-reporting, and 6 in 10 of its
+flags are false alarms — meaningfully better than the 13.75% base rate,
+but not a fraud detector to act on alone. Module 5 accordingly applies
+it only as a small, visible, capped penalty, never a silent feature.
 
 ## Known limitations
 
-1. **Completeness thresholds (`GST_MIN_FILING_COVERAGE`, `BANK_MIN_ACTIVE_DAY_COVERAGE`, etc.) are assumptions**, not derived from any real lender's policy. Tune in `config.py`.
-2. **The consistency check's precision/recall is specific to this synthetic dataset's noise characteristics** — it is not a general claim about how well GST-vs-bank consistency checks work in production. Different real-world noise (seasonal invoicing lags, partial banking of cash sales, multi-bank accounts) would change these numbers in either direction.
-3. **Concentration risk cannot be computed in this prototype at all** (see table above) — this should be flagged explicitly in any pitch, not glossed over as "still being tuned."
-4. **The bureau and utility-payment sources referenced in the architecture doc have no Module 1 generator**, so "Repayment & Credit Behavior" and "Compliance Discipline" are permanently partial in this prototype, not just for specific borrowers.
+1. **Completeness thresholds are assumptions**, not derived from any
+   real lender's policy. Tune in `config.py`.
+2. **The consistency check's precision/recall is specific to this
+   synthetic dataset's noise characteristics** — not a general claim
+   about production performance.
+3. **The EPFO-reliability check is implemented but unexercised** — in
+   this synthetic dataset EPFO completeness never degrades independently
+   of tier assignment, so the check has nothing real to catch yet.
 
 ## Files
 
 ```
 module2_data_quality/
-  config.py           - all thresholds and the dimension-to-source map
-  loader.py           - reads Module 1's data_lake
+  config.py           - thresholds + SUBMETRIC_SOURCE_MAP (22 submetrics -> sources + gating flags)
+  loader.py           - reads Module 1's data_lake (all 11 sources)
   schema_checks.py    - schema/range/referential-integrity validation
-  selftest.py          - injects known defects, proves the validator catches them
-  completeness.py      - per-source per-borrower coverage metrics
-  consistency.py       - GST-vs-bank ratio check + ground-truth backtest
-  tiering.py            - dimension availability matrix + re-derived quality tier
-  run_module2.py        - entry point
-  quality_output/       - output (generated, not checked in by hand — rerun to regenerate)
+  selftest.py         - injects known defects, proves the validator catches them
+  completeness.py     - per-source per-borrower coverage metrics
+  consistency.py      - GST-vs-bank ratio check + ground-truth backtest
+  tiering.py          - submetric availability matrix + re-derived quality tier
+  run_module2.py      - entry point
+  quality_output/     - output (regenerate by rerunning)
 ```

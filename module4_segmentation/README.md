@@ -1,192 +1,117 @@
-# Module 4 — Segmentation & Scoring-Eligibility Policy (Track 3)
+# Module 4 — 5C Weighting Engine & Scoring-Eligibility Policy (Track 3)
 
-## Read this before anything else: scope note
+The policy layer of the 5C scorecard. Consumes Module 2's per-submetric
+availability matrix and Module 1's gating flags and produces, per
+borrower: an **effective weight for each of the 22 submetrics and each
+of the 5 Cs**, a scorability decision, and a human-readable segment
+label. Module 5 consumes `segmentation_policy.csv` directly — it never
+re-derives availability logic.
 
-The architecture doc's original Module 4 ("route each borrower to Tier
-A/B/C, each tier gets a fixed dimension set") is **already done, at finer
-granularity**, by Module 2 (`quality_tier`: Full/Partial/Thin, re-derived
-from actual completeness) and Module 3 (per-borrower, per-dimension
-availability: `available` / `insufficient_data` / `not_applicable` /
-`not_computable_in_prototype`). Rebuilding a coarse 3-bucket router on top
-of that data would be a step **backward** in precision — it would throw
-away information Module 2/3 already computed per-dimension.
+## The core mechanism: exclude and renormalise, at two levels
 
-What this module actually adds, which Module 2/3 don't do:
+One flat base-weight table per level; no conditional branching anywhere.
 
-1. **A weight policy** — a base weight per dimension, and an explicit rule
-   for what happens to that weight when a dimension is unavailable for a
-   given borrower (excluded vs. discounted, and by how much).
-2. **A scoring-eligibility check** — is there enough usable data to
-   produce a composite score at all, or should Module 5 refuse rather than
-   output a number that looks precise but isn't.
-3. **A human-readable segment label** per borrower, derived from their
-   actual dimension combination — not a static assumption about what
-   "Tier A" means.
+**Dimension (C-level) base weights:**
 
-If you only take one thing from this README: **Module 4 is a policy
-layer, not a re-tiering step.** Module 5 should consume this module's
-`segmentation_policy.csv` directly for its weights, not re-derive
-completeness logic that already lives in Module 2/3.
+| Dimension | Weight |
+|---|---|
+| Capacity | 0.30 |
+| Character | 0.25 |
+| Capital | 0.20 |
+| Compliance | 0.15 |
+| Collateral | 0.10 |
+
+**Submetric base weights within each C** (each set sums to 1.0 —
+see `config.py`; e.g. Capacity is led by DSCR at 0.22 and cash-flow
+match at 0.18; Character by bureau score at 0.50).
+
+Per borrower:
+- `available` → full base weight;
+- `insufficient_data` → base weight × 0.5 (data exists but is below
+  Module 2's threshold — discounted, not discarded);
+- `not_applicable` → weight zeroed, remainder renormalised.
+
+Renormalisation runs **within each C first** (submetric level), then
+**across the 5 Cs** (a C whose submetrics are all excluded contributes
+nothing, and its dimension weight redistributes proportionally).
+
+**Why no conditional tables:** renormalising after excluding an item
+preserves the relative proportions of what remains. The three
+"conditional weighting" behaviours the design called for — Character
+redistributing when no bureau record exists, Compliance re-ranking when
+no covenant exists (GST becomes the top submetric automatically),
+Capacity dropping balance-sheet ratios when no balance sheet exists —
+all fall out of this single mechanism. Hand-verified: Character with
+bureau excluded renormalises to exactly the specified fallback
+proportions; Compliance without a covenant yields
+gst > utility > epfo > rent > salary, matching the specified
+no-covenant ordering.
+
+**Eligibility:** a borrower needs at least 3 of the 5 Cs carrying
+nonzero weight to be `scorable`; below that, Module 5 refuses to emit a
+composite rather than dress up a 1–2 C number as a full health score.
 
 ## Run it
 
 ```bash
 cd module4_segmentation
 pip install pandas
-python run_module4.py                              # uses ../module2_data_quality/quality_output by default
-python run_module4.py /path/to/quality_output
+python run_module4.py       # uses ../module2_data_quality/quality_output by default
 ```
 
 Produces `segmentation_output/`:
 
 | File | Description |
 |---|---|
-| `segmentation_policy.csv` | Per borrower: status + effective weight per dimension, `n_dimensions_included`, `scorable`, `segment_label`, `data_confidence` |
-| `policy_checks.csv` | Internal consistency checks (weights sum to 1.0, non-scorable borrowers get zero weight everywhere, concentration_risk always excluded) |
+| `segmentation_policy.csv` | Per borrower: status + effective weight per submetric and per C, `scorable`, `segment_label` |
+| `policy_checks.csv` | Internal consistency checks (see below) |
 | `segment_distribution.csv` | Counts per segment label |
-
-## The policy
-
-**Base weights** (sum to 1.0 across all 6 architecture-doc dimensions):
-
-| Dimension | Base weight |
-|---|---|
-| Liquidity & Cash Flow | 0.20 |
-| Repayment & Credit Behavior | 0.15 |
-| Revenue & Growth Signal | 0.20 |
-| Operational Stability | 0.15 |
-| Compliance Discipline | 0.20 |
-| Concentration Risk | 0.10 |
-
-These are assumptions, not derived from any lender's actual risk model —
-tune in `config.py`. Concentration risk's weight is included so the policy
-is ready the moment Module 1 gains counterparty-level data; until then, it
-is always excluded (see results below).
-
-**Per-borrower handling, by Module 3's dimension status:**
-- `available` → full base weight
-- `insufficient_data` → base weight × 0.5 (there IS data, just below
-  Module 2's completeness threshold — discounted, not thrown away).
-  0.5 is an assumption, not a calibrated number.
-- `not_applicable` (e.g. EPFO for Tier A) → excluded, weight redistributed.
-  Not a penalty — the dimension genuinely doesn't apply.
-- `not_computable_in_prototype` (concentration risk, always, for
-  everyone) → excluded, weight redistributed.
-
-Remaining weights are renormalized to sum to 1.0 over whichever
-dimensions actually carry weight for that borrower.
-
-**Eligibility:** a borrower needs at least 3 dimensions carrying nonzero
-weight to be `scorable`. Below that, Module 5 should refuse to produce a
-composite score rather than build one off 1-2 dimensions.
 
 ## Results from this run (400 borrowers)
 
-**All 400 borrowers are scorable.** Even the worst-off group (short-history
-Tier A borrowers, all their applicable dimensions flagged
-`insufficient_data`) still clears the 3-dimension minimum with 4 discounted
-dimensions. This is a property of this specific synthetic dataset — it
-does NOT prove the 3-dimension threshold is right, only that nobody in
-this run happened to fall below it. A real deployment should watch this
-threshold's actual bite rate as new borrower profiles show up.
+**All 400 borrowers are scorable.** Segment distribution:
 
-**Segment distribution:**
+| Segment | Count |
+|---|---|
+| Full — 5 of 5 Cs available | 88 |
+| Reduced — 4 of 5 Cs (capacity, character, capital, compliance) | 117 |
+| Reduced — 4 of 5 Cs (capacity, character, compliance, collateral) | 63 |
+| Reduced — 3 of 5 Cs (capacity, character, compliance) | 132 |
 
-| Segment | Count | What it means |
-|---|---|---|
-| Full — 5 dimensions available | 156 | Tier C borrowers with clean data across GST, bank, and EPFO |
-| Reduced — 4 dimensions available (structurally unavailable, not a data gap) | 205 | Tier A borrowers — missing only `operational_stability` because they have no EPFO by construction, not because anything is wrong with their data |
-| Partial confidence — 4 dimensions (4 discounted for thin data) | 39 | Short-history Tier A borrowers (Module 1 v2) — every applicable dimension is present but thin, all discounted 50% |
+Capital is in play for 205 borrowers (the rest have no balance sheet);
+Collateral for 151 (the rest have none pledged). Capacity, Character,
+and Compliance are in play for all 400 — Character and Compliance
+because their fallback submetrics (disputes, bounce rate, tenure;
+GST/utility/rent/salary timeliness) exist even without a bureau record
+or covenant.
 
-Note there is no segment with fewer than 4 dimensions in this run, and
-`concentration_risk` never contributes weight to anyone — it's excluded
-for all 400 borrowers, every time, because Module 1 has no counterparty
-data. **The composite score Module 5 builds from this policy is
-effectively a 5-dimension score (4 for Tier A), not the 6-dimension score
-implied by the architecture doc.** Say this plainly if it comes up.
+**All 7 internal consistency checks pass:** C-level effective weights
+sum to 1.0 for every scorable borrower (max deviation ~1e-16), and each
+C's submetric weights sum to 1.0 when the C is in play and 0 when
+excluded.
 
-## Correction: the 0.5 discount is NOT what caused Module 8's short-history bias
-
-Module 8's monitoring originally (and wrongly) attributed the short-history
-fairness gap to "Module 4's 50% insufficient-data discount interacting with
-percentile-rank scoring." That diagnosis doesn't survive the math:
-
-Scaling every included dimension's raw weight by the same constant `c` and
-renormalizing gives `(w_i·c) / Σ(w_j·c) = w_i / Σw_j` — **identical relative
-weights to not discounting at all.** The discount only changes anything
-when it applies to *some but not all* of a borrower's included dimensions.
-
-For the 39 short-history borrowers, Module 1 truncates GST and bank history
-together, so every one of their included dimensions carries the same
-`insufficient_data` status — meaning this module's 0.5× multiplier has
-**never had any effect on their scores.** Verified by rerunning Module 4
-with the discount mechanism producing byte-identical effective weights to
-the undiscounted case for this group.
-
-A new `data_confidence` column now makes this explicit per borrower:
-`full` (no discount applies), `discount_applied` (mixed statuses — the
-multiplier has a real effect), or `discount_is_noop_all_dims_uniformly_thin`
-(every included dimension shares the same status — mathematically inert).
-In this run, all 39 short-history borrowers land in the last bucket; 0
-borrowers anywhere in this dataset land in `discount_applied` — meaning the
-discount mechanism, as currently exercised by this synthetic dataset, has
-never once changed a composite score. That's worth knowing before trusting
-it in a real deployment.
-
-**The actual bug was in Module 3** (`balance_trend_pct` computed a raw %
-change over however much history was available, which is not comparable
-across different window lengths) — fixed there, see that module's README
-for the before/after. A smaller residual short-history gap remains after
-that fix (see Module 8's README) and reflects genuinely less trend signal
-in a shorter window across several ratio-based growth features, not a
-mechanism this module's weights can fix. If a lender-facing product wants
-to actually communicate that reduced certainty, the right lever is probably
-a confidence-adjusted score *range* surfaced at the API layer (Module 7),
-not a further tweak to these weights — flagged as a real next step, not
-implemented here.
-
-## Internal consistency checks
-
-All 3 checks pass: scorable borrowers' effective weights sum to 1.0
-(within 1e-3 rounding tolerance), non-scorable borrowers (none in this
-run) would get zero weight everywhere, and concentration_risk's weight is
-confirmed zero for all 400 borrowers.
-
-These are NOT a ground-truth backtest — there's no "correct" weight
-vector to validate against. They only catch a broken policy, not a bad
-one. Whether 0.20/0.15/0.20/0.15/0.20/0.10 or a 0.5 discount multiplier
-are the *right* numbers is a business judgment call for your team, not
-something this module can prove.
+These checks catch a *broken* policy, not a *bad* one — whether
+0.30/0.25/0.20/0.15/0.10 are the right numbers is a lender's judgment
+call, tunable in `config.py`.
 
 ## Known limitations
 
-1. Base weights and the 0.5 discount multiplier are assumptions — see above.
-2. The 3-dimension eligibility floor is untested against any real edge
-   case in this synthetic dataset (nobody fell below it here).
-3. Because `concentration_risk` is always excluded in this prototype, its
-   0.10 base weight is currently dead configuration — it does nothing
-   until Module 1 gains a counterparty-ID field.
-4. This module treats all `insufficient_data` dimensions identically (flat
-   0.5 discount) regardless of HOW insufficient — a borrower at 59%
-   coverage and one at 10% coverage get the same discount. A production
-   version might scale the discount continuously with the actual
-   coverage ratio instead of a step function.
-5. **The discount multiplier is a no-op for any borrower whose included
-   dimensions are all uniformly `insufficient_data`** — see the correction
-   above. In this dataset that's true for 100% of the borrowers who ever
-   hit the discount path (39/39), meaning the discount has not yet done
-   anything in this prototype. It would matter for a borrower with a mix
-   of `available` and `insufficient_data` dimensions, which doesn't happen
-   to occur in this synthetic cohort — untested, not proven safe.
+1. **All base weights and the 0.5 insufficient-data discount are
+   assumptions**, not calibrated against any real portfolio.
+2. **The 3-of-5 eligibility floor never bites in this dataset** (all
+   400 scorable) — its real-world bite rate is untested.
+3. **The discount treats all `insufficient_data` identically** — 59%
+   coverage and 10% coverage get the same 0.5×. A production version
+   might scale continuously with actual coverage.
 
 ## Files
 
 ```
 module4_segmentation/
-  config.py              - base weights, discount multiplier, eligibility threshold
-  loader.py              - reads Module 2's dimension_availability
-  segmentation.py         - core policy logic: weights, eligibility, segment labels
-  validate.py             - internal consistency checks (not a ground-truth backtest)
-  run_module4.py          - entry point
-  segmentation_output/    - output (generated, not checked in by hand — rerun to regenerate)
+  config.py              - 5C base weights + per-C submetric weights + eligibility threshold
+  loader.py              - reads Module 2's submetric_availability + Module 1's master flags
+  segmentation.py        - two-level exclude-and-renormalise weighting, segment labels
+  validate.py            - internal consistency checks (not a ground-truth backtest)
+  run_module4.py         - entry point
+  segmentation_output/   - output (regenerate by rerunning)
 ```

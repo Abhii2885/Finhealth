@@ -1,152 +1,122 @@
-# Module 3 — Dimension Feature Engineering (Track 3)
+# Module 3 — 5C Feature Engineering (Track 3)
 
-Turns Module 1's raw data lake into numeric features grouped by Track 3's
-scoring dimensions. This module produces **features only** — not the 0–100
-per-dimension sub-scores. That aggregation/scoring step is Module 5.
+Turns Module 1's raw data lake into the 22 numeric submetrics of the
+**5 Cs of Credit** scorecard (Capacity / Character / Capital /
+Compliance / Collateral). This module produces **features only** — the
+0–100 scoring happens in Module 5 using Module 4's weights.
 
 ## Run it
 
 ```bash
 cd module3_feature_engineering
 pip install pandas numpy
-python run_module3.py                                          # uses sibling module1/module2 output dirs by default
-python run_module3.py /path/to/data_lake /path/to/quality_output
+python run_module3.py          # uses sibling module1/module2 output dirs by default
 ```
 
 Produces `features_output/`:
 
 | File | Description |
 |---|---|
-| `borrower_features.csv` | One row per borrower: all dimension features + Module 2's per-dimension availability status |
-| `feature_validation.csv` | Backtest of each feature's direction against the hidden `true_archetype` label |
-| `excluded_dimensions.csv` | Manifest of dimensions/sub-features this prototype cannot compute at all |
+| `borrower_features.csv` | One row per borrower: all 22 submetrics + Module 2's per-submetric availability status |
+| `feature_validation.csv` | Backtest of each directional feature against the hidden `true_archetype` label |
+| `excluded_dimensions.csv` | Empty in the 5C build — every scorecard dimension is now computable |
 
 ## Features by dimension
 
-**Liquidity & Cash Flow Health** (bank/UPI): `avg_balance_inr`, `balance_trend_pct`, `monthly_inflow_volatility`, `monthly_outflow_volatility`, `txn_frequency_stability`
+**Capacity** (`capacity_features.py`): `dscr`, `interest_coverage_ratio`
+(capped at 10×), `current_ratio`, `leverage_ratio` (debt / net worth,
+0–10× real-world scale, capped), `cash_flow_match_ratio` (bank credits
+vs declared turnover, 0–100%), `revenue_cagr_3yr` (requires 3 full
+annual buckets from the 36-month GST/self-declared series),
+`projected_revenue_growth_rate` (from the loan application),
+`customer_concentration_pct` / `supplier_concentration_pct` (top
+counterparty's share of bank inflows/outflows).
 
-**Repayment & Credit Behavior** (bank/UPI): `cheque_bounce_rate`, `cheque_bounce_count_annualized`. `bureau_dpd_history` and `credit_limit_utilization_pct` are always null — see Known Gaps.
+**Character** (`character_features.py`): `bureau_score` (CIBIL-style
+300–900), `civil_suit_years_since_active` /
+`other_legal_dispute_years_since_active` (0 = dispute active now;
+N = years since the most recent resolution; sentinel 100 = never had
+one — deliberately a large number, not NaN, because "never had a
+dispute" is the *best* case and must score, not be excluded),
+`cheque_bounce_rate`, `owner_time_in_business_years`.
 
-**Revenue & Growth Signal** (GST, + Module 2 passthrough): `turnover_growth_rate`, `turnover_volatility`, `avg_monthly_turnover_inr`, `gst_periods_observed`, plus `turnover_bank_ratio` / `gst_bank_consistency_flag` carried forward from Module 2 (not recomputed).
+**Capital** (`capital_features.py`): `net_worth_to_assets_ratio`.
 
-**Operational Stability** (EPFO, Tier C only): `headcount_growth_rate`, `headcount_volatility`, `wage_bill_growth_rate`, `avg_employee_count`, `epfo_periods_observed`. Null (not zero) for Tier A.
+**Compliance** (`compliance_features.py`): all ratios computed over the
+**trailing 6 months only** (recent discipline, not permanent record):
+`gst_ontime_filing_ratio`, `epfo_ontime_remittance_ratio`,
+`utility_payment_timeliness`, `rent_payment_timeliness`,
+`salary_payment_timeliness` (denominators are months observed in the
+window — a missed payment counts against timeliness, it doesn't vanish),
+plus point-in-time `covenant_compliance_flag`.
 
-**Compliance Discipline** (GST): `gst_ontime_filing_ratio`, `gst_missed_filing_rate`, `gst_avg_filing_delay_days`. `utility_payment_timeliness` is always null — see Known Gaps.
+**Collateral** (`collateral_features.py`): `collateral_type`,
+`construction_status`, `estimated_value_inr` (raw pass-through; the
+type × construction lookup score is applied in Module 5).
 
-**Concentration Risk / Collateral & Coverage**: no columns at all in this table — not partially computed, not computed. See Known Gaps.
+`turnover_unify.py` merges GST and self-declared turnover into one
+series so non-GST-registered borrowers get real revenue features rather
+than permanent NaN. Missing-by-construction values (no loan → no DSCR)
+are NaN, never zero — Module 4 excludes and renormalises.
 
 ## Validation against hidden ground truth
 
-Backtested each feature's group means across the hidden `true_archetype`
-label (healthy / stagnant / distressed) — never used as an input, only to
-check the feature engineering captured real signal:
+Every directional feature's group means are backtested across the hidden
+`true_archetype` label (healthy / stagnant / distressed) — never used as
+an input, only to verify the engineering captured real signal:
 
-| Feature | Healthy | Stagnant | Distressed | Expected direction correct? |
-|---|---|---|---|---|
-| balance_trend_pct | 16.8 | 14.9 | 10.2 | Yes |
-| monthly_inflow_volatility | 0.122 | 0.114 | 0.175 | **No** — distressed clearly highest (right end), but stagnant < healthy breaks strict ordering |
-| monthly_outflow_volatility | 0.102 | 0.112 | 0.166 | Yes |
-| txn_frequency_stability | 0.082 | 0.084 | 0.111 | Yes |
-| cheque_bounce_rate | 0.004 | 0.015 | 0.047 | Yes |
-| cheque_bounce_count_annualized | 11.2 | 28.9 | 64.2 | Yes |
-| turnover_growth_rate | 1.198 | 1.053 | 0.721 | Yes |
-| turnover_volatility | 0.133 | 0.175 | 0.326 | Yes |
-| headcount_growth_rate | 1.123 | 1.015 | 0.840 | Yes |
-| headcount_volatility | 0.048 | 0.033 | 0.071 | **No** — same pattern as inflow volatility above |
-| wage_bill_growth_rate | 1.128 | 1.015 | 0.832 | Yes |
-| gst_ontime_filing_ratio | 0.932 | 0.696 | 0.420 | Yes |
-| gst_missed_filing_rate | 0.009 | 0.020 | 0.088 | Yes |
-| gst_avg_filing_delay_days | -1.26 | 0.77 | 9.19 | Yes |
+**20 of 20 directional features pass strict monotonic ordering.**
+Representative rows:
 
-**12 of 14 features pass strict monotonic ordering.** The 2 that don't
-(`monthly_inflow_volatility`, `headcount_volatility`) both fail the same
-way: distressed is clearly the highest-volatility group as expected, but
-stagnant comes out lower than healthy instead of between healthy and
-distressed. This traces back to Module 1's `ARCHETYPE_PARAMS` noise
-settings not tuning the "stagnant" archetype's volatility as a strict
-midpoint between the other two — a real, minor calibration gap in Module
-1, not a bug in this module's feature logic. Worth a one-line fix in
-`msme_data_gen`'s archetype params if this comes up in a pitch, but not
-worth blocking Module 3 on.
+| Feature | Healthy | Stagnant | Distressed |
+|---|---|---|---|
+| current_ratio | 2.40 | 1.67 | 0.90 |
+| leverage_ratio | 0.47 | 3.17 | 6.86 |
+| dscr | 7.14 | 5.10 | 1.49 |
+| bureau_score | 758 | 680 | 578 |
+| cheque_bounce_rate | 0.4% | 1.5% | 4.3% |
+| net_worth_to_assets_ratio | 0.44 | 0.33 | 0.18 |
+| gst_ontime_filing_ratio | 0.92 | 0.68 | 0.39 |
+| covenant_compliance_flag | 0.95 | 0.75 | 0.45 |
 
-## Bug fix: balance_trend_pct was not comparable across history lengths
+Full table in `features_output/feature_validation.csv`. Non-directional
+features (cash-flow match band, concentration, collateral fields,
+owner tenure) are deliberately excluded from the ordering check — they
+are not archetype-driven by construction.
 
-Module 8's monitoring found that short-history (thin-file) borrowers were
-scored unevenly by archetype — healthy ones penalized hardest. Investigating
-that finding here (not in Module 4, where it was originally suspected —
-see Module 4's README for why that mechanism turned out to be a math
-no-op) traced it to this feature.
+## Known limitations
 
-**The bug:** the original formula compared the mean balance in the first
-10% of observed days to the mean in the last 10%, and reported raw %
-change over the whole window. That's a cumulative change over however
-much time happens to be observed — a borrower with 24 months of history
-has ~7x more time for the same underlying trend to compound than a
-borrower with 3.5 months. Before the fix, raw `balance_trend_pct` means
-were **593–1868%** for full-history borrowers vs. **9–45%** for
-short-history borrowers of the *same archetype* — an order-of-magnitude
-gap driven by elapsed time, not by how healthy the business actually is.
-Percentile-ranking that number in Module 5 against a population dominated
-by full-history borrowers then pushed every short-history borrower
-(healthy, stagnant, and distressed alike) into the single-digit
-percentiles on this feature.
-
-**The fix:** fit a linear trend (OLS slope of balance vs. day index) using
-all available days, expressed as % of average balance per 30 days — a
-rate, not a cumulative change, so it's comparable regardless of window
-length. New raw means (see updated table above): healthy 16.8, stagnant
-14.9, distressed 10.2 — still correctly ordered, now on a believable
-scale for both full- and short-history borrowers.
-
-**What this did and didn't fix:** it removed a genuine, provable
-mechanical bug in one feature. It did **not** fully close Module 8's
-short-history fairness gap — see that module's README for the measured
-before/after. Several other growth-rate features (`turnover_growth_rate`,
-`headcount_growth_rate`, `wage_bill_growth_rate`, gap #4 below) are
-ratio-based rather than cumulative, so they don't have this same scaling
-defect, but they are still noisier and closer to a neutral 1.0 on short
-windows — that's a genuine information limit (less time observed = less
-trend visible), not a formula bug, and wasn't changed.
-
-## Known gaps (things this module structurally cannot do)
-
-1. **Concentration risk and collateral/coverage have zero columns** in
-   `borrower_features.csv` — not partial, not null-flagged, just absent.
-   Module 1 has no counterparty/vendor-ID field (concentration) and no
-   collateral data source at all. Adding either requires a Module 1
-   change first, not a Module 3 fix.
-2. **Repayment & Credit Behavior is missing bureau DPD history and credit
-   limit utilization** for every borrower, not a subset — Module 1 has no
-   bureau connector and no sanctioned-limit field to compute utilization
-   against. This dimension's feature set is permanently thin in this
-   prototype.
-3. **Compliance Discipline is missing utility payment timeliness** for
-   every borrower — same reason, no generator exists for it.
-4. **Growth-rate features (`turnover_growth_rate`, `headcount_growth_rate`,
-   `wage_bill_growth_rate`) compare short windows** (first/last 3 months,
-   or fewer for short-history borrowers) **against each other, not a full
-   regression trend line** — sensitive to a single unusually good or bad
-   month at either end. Fine for a prototype; a production version should
-   fit a trend line instead of comparing two small windows.
-5. **Volatility features use coefficient of variation**, which is scale-
-   sensitive for near-zero means — flagged NaN when the mean is exactly 0,
-   but very small means can still produce inflated-looking volatility
-   numbers. Worth sanity-checking per-borrower outliers before using this
-   in Module 5's weighting.
+1. **Value caps (10× on DSCR/coverage/current/leverage ratios) are
+   display-realism bounds**, applied at generation/feature level per
+   user specification — a real deployment would document the winsorising
+   policy with the lender.
+2. **`projected_revenue_growth_rate` is a self-reported application
+   figure** with mild archetype-conditioned optimism bias — treated as a
+   lower-trust signal (lower subweight in Module 4) than the audited
+   CAGR.
+3. **The dispute recency sentinel (100 years) is a modelling convention**
+   — any value ≥ the rubric's top tier (10 years) scores identically, so
+   the magnitude is inert, but it will look odd in raw-data exports.
+4. **Concentration features need a minimum transaction count** — below
+   it they are NaN (insufficient data), preventing small-sample
+   top-counterparty shares from masquerading as signal.
 
 ## Files
 
 ```
 module3_feature_engineering/
-  config.py                - dimension-to-feature assumptions, trend windows, excluded-dimension list
-  loader.py                 - reads Module 1 data_lake + Module 2 quality_output
-  liquidity_features.py     - bank/UPI-derived liquidity features
-  repayment_features.py     - bank/UPI-derived repayment features (+ documented gaps)
-  revenue_features.py       - GST-derived revenue features + Module 2 consistency passthrough
-  operational_features.py   - EPFO-derived features (Tier C only)
-  compliance_features.py    - GST-derived compliance features (+ documented gap)
-  build_features.py         - orchestrator, merges all dimensions + Module 2 availability status
-  validate.py               - backtests every feature against the hidden true_archetype label
-  run_module3.py             - entry point
-  features_output/           - output (generated, not checked in by hand — rerun to regenerate)
+  config.py                - snapshot date, windows, value bounds
+  loader.py                - reads Module 1 data_lake + Module 2 quality_output
+  capacity_features.py     - 9 Capacity submetrics
+  character_features.py    - 5 Character submetrics (incl. years-since-active dispute recency)
+  capital_features.py      - net worth / total assets
+  compliance_features.py   - 6 Compliance submetrics, trailing-6-month windows
+  collateral_features.py   - collateral raw fields
+  turnover_unify.py        - GST + self-declared turnover into one series
+  liquidity_features.py    - legacy bank-trend features (kept for Module 6's trend view)
+  operational_features.py  - legacy EPFO features (kept for completeness checks)
+  build_features.py        - orchestrator, merges all builders + availability status
+  validate.py              - backtests every directional feature against true_archetype
+  run_module3.py           - entry point
+  features_output/         - output (regenerate by rerunning)
 ```
